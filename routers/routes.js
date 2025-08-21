@@ -30,7 +30,12 @@ const upload = multer({ storage: storage, fileFilter: fileFilter });
 router.get("/data", isAuth, feedData.feedResponse);
 router.post("/posts", isAuth, upload.single("imageURL"), feedData.feedPost);
 router.get("/posts/:postId", isAuth, feedData.getPost);
-router.put("/posts/:postId", isAuth, feedData.updatePost);
+router.put(
+  "/posts/:postId",
+  isAuth,
+  upload.single("imageURL"),
+  feedData.updatePost
+);
 router.delete("/posts/:postId", isAuth, feedData.deletePost);
 
 module.exports = router;
