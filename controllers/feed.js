@@ -14,23 +14,23 @@ exports.feedPost = async (req, res) => {
     return res.status(400).json({ message: "Title and content are required." });
   }
 
-  const newPost = new Post({
+  const newPost = {
     title: title,
     imageURL: image,
     content: content,
     creator: req.userId,
-  });
+  };
 
   try {
-    const post = await newPost.save();
+    const post = await Post.create(newPost);
     const user = await User.findById(post.creator);
-    user.posts.push(newPost);
+    user.posts.push(post._id);
     const results = await user.save();
 
     res.status(201).json({
       message: "Data saved to the server successfully!",
-      data: newPost,
-      creator: { _id: results._id, name: results.name },
+      data: post,
+      creatorName: results.name,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
