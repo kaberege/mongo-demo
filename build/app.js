@@ -1,11 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 const router = require("./routers/routes");
 const authRoutes = require("./routers/auth");
 const app = express();
+const { MONGO_USER, MONGO_PASSWORD, MONGO_HOST, MONGO_PORT, MONGO_DB, MONGO_AUTH_SOURCE, } = process.env;
 app.use(bodyParser.json()); // application/json
 app.use("/static", express.static("public"));
 app.use((req, res, next) => {
@@ -16,12 +18,13 @@ app.use((req, res, next) => {
 });
 app.use("/feed", router);
 app.use("/auth", authRoutes);
+const MONGO_URI = `mongodb://${MONGO_USER}:${MONGO_PASSWORD}@${MONGO_HOST}:${MONGO_PORT}/${MONGO_DB}?authSource=${MONGO_AUTH_SOURCE}`;
 mongoose
-    .connect("mongodb://localhost:27017")
+    .connect(MONGO_URI)
     .then((result) => {
-    console.log("Mongooese is connected!");
+    console.log("Mongoose is connected!");
     app.listen(8000, () => {
-        console.log("I am listening to the port 8000");
+        console.log("Express is listening to the port 8000");
     });
 })
     .catch((error) => {
