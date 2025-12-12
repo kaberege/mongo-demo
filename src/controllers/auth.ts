@@ -1,9 +1,12 @@
+import type Response = require("express");
+import type e = require("express");
+
 const User = require("../models/user");
 const Post = require("../models/model");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-exports.userAuth = async (req, res) => {
+exports.userAuth = async (req: e.Request, res: Response) => {
   const { name, email, password } = req.body;
 
   try {

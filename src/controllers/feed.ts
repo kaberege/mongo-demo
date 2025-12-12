@@ -1,12 +1,14 @@
+import type e = require("express");
+
 const Post = require("../models/model");
 const User = require("../models/user");
 
-exports.feedResponse = (req, res) => {
+/* exports.feedResponse = (req, res) => {
   console.log("I got data with accurate responses.");
   res.json({ id: 1, name: "kgn", age: 20 });
-};
+}; */
 
-exports.feedPost = async (req, res) => {
+exports.feedPost = async (req: e.Request, res: e.Response) => {
   const { title, content } = req.body;
   const image = req.file ? req.file.path : null;
 
