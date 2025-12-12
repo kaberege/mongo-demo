@@ -1,3 +1,5 @@
+import type e = require("express");
+
 require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
@@ -14,9 +16,9 @@ const {
   MONGO_AUTH_SOURCE,
 } = process.env;
 
-app.use(bodyParser.json()); // application/json
+app.use(bodyParser.json()); // accept application/json
 app.use("/static", express.static("public"));
-app.use((req, res, next) => {
+app.use((req: e.Request, res: e.Response, next: e.NextFunction) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader(
     "Access-Control-Allow-Methods",

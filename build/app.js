@@ -8,7 +8,7 @@ const router = require("./routers/routes");
 const authRoutes = require("./routers/auth");
 const app = express();
 const { MONGO_USER, MONGO_PASSWORD, MONGO_HOST, MONGO_PORT, MONGO_DB, MONGO_AUTH_SOURCE, } = process.env;
-app.use(bodyParser.json()); // application/json
+app.use(bodyParser.json()); // accept application/json
 app.use("/static", express.static("public"));
 app.use((req, res, next) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
