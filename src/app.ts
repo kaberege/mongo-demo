@@ -1,12 +1,14 @@
-import type e = require("express");
+import dotenv from "dotenv";
+dotenv.config();
 
-require("dotenv").config();
-const express = require("express");
-const mongoose = require("mongoose");
-const bodyParser = require("body-parser");
-const router = require("./routers/routes");
-const authRoutes = require("./routers/auth");
+import express from "express";
+import type { Request, Response, NextFunction } from "express";
+import mongoose from "mongoose";
+import bodyParser from "body-parser";
+import feedRoutes from "./routers/feed.js";
+import authRoutes from "./routers/auth.js";
 const app = express();
+
 const {
   MONGO_USER,
   MONGO_PASSWORD,
@@ -18,7 +20,7 @@ const {
 
 app.use(bodyParser.json()); // accept application/json
 app.use("/static", express.static("public"));
-app.use((req: e.Request, res: e.Response, next: e.NextFunction) => {
+app.use((req: Request, res: Response, next: NextFunction) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader(
     "Access-Control-Allow-Methods",
@@ -28,7 +30,7 @@ app.use((req: e.Request, res: e.Response, next: e.NextFunction) => {
   next();
 });
 
-app.use("/feed", router);
+app.use("/feed", feedRoutes);
 app.use("/auth", authRoutes);
 
 const MONGO_URI = `mongodb://${MONGO_USER}:${MONGO_PASSWORD}@${MONGO_HOST}:${MONGO_PORT}/${MONGO_DB}?authSource=${MONGO_AUTH_SOURCE}`;

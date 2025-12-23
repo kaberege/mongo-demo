@@ -1,12 +1,10 @@
-import type Response = require("express");
-import type e = require("express");
+import type { Request, Response } from "express";
+import User from "../models/user.js";
+import Post from "../models/model.js";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
-const User = require("../models/user");
-const Post = require("../models/model");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-
-exports.userAuth = async (req: e.Request, res: Response) => {
+export const userAuth = async (req: Request, res: Response) => {
   const { name, email, password } = req.body;
 
   try {
@@ -31,7 +29,7 @@ exports.userAuth = async (req: e.Request, res: Response) => {
   }
 };
 
-exports.userLogin = async (req, res) => {
+export const userLogin = async (req: Request, res: Response) => {
   const email = req.body.email;
   const password = req.body.password;
 
@@ -67,7 +65,7 @@ exports.userLogin = async (req, res) => {
   }
 };
 
-exports.userUpdate = async (req, res) => {
+export const userUpdate = async (req: Request, res: Response) => {
   const { name, email, password } = req.body;
 
   try {
@@ -93,7 +91,7 @@ exports.userUpdate = async (req, res) => {
   }
 };
 
-exports.userDelete = async (req, res) => {
+export const userDelete = async (req: Request, res: Response) => {
   try {
     await User.findByIdAndDelete(req.userId);
     await Post.deleteMany({ creator: req.userId });

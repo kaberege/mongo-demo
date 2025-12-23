@@ -1,8 +1,15 @@
-const express = require("express");
-const feedData = require("../controllers/feed");
+import express from "express";
+import {
+  feedResponse,
+  feedPost,
+  getPost,
+  updatePost,
+  deletePost,
+} from "../controllers/feed.js";
+import { isAuth } from "../middleware/is-auth.js";
+import multer from "multer";
+
 const router = express.Router();
-const isAuth = require("../middleware/is-auth");
-const multer = require("multer");
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -27,15 +34,10 @@ function fileFilter(req, file, cb) {
 }
 const upload = multer({ storage: storage, fileFilter: fileFilter });
 
-router.get("/data", isAuth, feedData.feedResponse);
-router.post("/posts", isAuth, upload.single("imageURL"), feedData.feedPost);
-router.get("/posts/:postId", isAuth, feedData.getPost);
-router.put(
-  "/posts/:postId",
-  isAuth,
-  upload.single("imageURL"),
-  feedData.updatePost
-);
-router.delete("/posts/:postId", isAuth, feedData.deletePost);
+router.get("/data", isAuth, feedResponse);
+router.post("/posts", isAuth, upload.single("imageURL"), feedPost);
+router.get("/posts/:postId", isAuth, getPost);
+router.put("/posts/:postId", isAuth, upload.single("imageURL"), updatePost);
+router.delete("/posts/:postId", isAuth, deletePost);
 
-module.exports = router;
+export default router;

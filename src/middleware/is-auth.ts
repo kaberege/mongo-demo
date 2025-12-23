@@ -1,6 +1,7 @@
-const jwt = require("jsonwebtoken");
+import jwt from "jsonwebtoken";
+import type { Request, Response, NextFunction } from "express";
 
-module.exports = (req, res, next) => {
+export const isAuth = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.get("Authorization");
 
   if (!authHeader) {

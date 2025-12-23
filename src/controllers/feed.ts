@@ -1,14 +1,13 @@
-import type e = require("express");
+import type { Request, Response } from "express";
+import User from "../models/user.js";
+import Post from "../models/model.js";
 
-const Post = require("../models/model");
-const User = require("../models/user");
-
-exports.feedResponse = (req, res) => {
+export const feedResponse = (req: Request, res: Response) => {
   console.log("I got data with accurate responses.");
   res.json({ id: 1, name: "kgn", age: 20 });
 };
 
-exports.feedPost = async (req: e.Request, res: e.Response) => {
+export const feedPost = async (req: Request, res: Response) => {
   const { title, content } = req.body;
   const image = req.file ? req.file.path : null;
 
@@ -39,7 +38,7 @@ exports.feedPost = async (req: e.Request, res: e.Response) => {
   }
 };
 
-exports.getPost = async (req, res) => {
+export const getPost = async (req: Request, res: Response) => {
   const postId = req.params.postId;
   try {
     const response = await Post.findById(postId);
@@ -49,7 +48,7 @@ exports.getPost = async (req, res) => {
   }
 };
 
-exports.updatePost = async (req, res) => {
+export const updatePost = async (req: Request, res: Response) => {
   const postId = req.params.postId;
   const { title, content } = req.body;
   const image = req.file ? req.file.path : null;
@@ -78,7 +77,7 @@ exports.updatePost = async (req, res) => {
   }
 };
 
-exports.deletePost = async (req, res) => {
+export const deletePost = async (req: Request, res: Response) => {
   const postId = req.params.postId;
 
   try {
