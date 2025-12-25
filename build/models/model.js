@@ -1,25 +1,23 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-const mongoose = require('mongoose');
+import mongoose from "mongoose";
 const { Schema } = mongoose;
 const postSchema = new Schema({
     title: {
         type: String,
-        required: true
+        required: true,
     },
     content: {
         type: String,
-        required: true
+        required: true,
     },
     imageURL: {
         type: String,
-        required: true
+        required: true,
     },
     creator: {
         type: Schema.Types.ObjectId,
         ref: "User",
-        required: true
+        required: true,
     },
 }, { timestamps: true });
-module.exports = mongoose.model("Post", postSchema);
+export default mongoose.model("Post", postSchema);
 //# sourceMappingURL=model.js.map

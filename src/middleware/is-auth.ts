@@ -1,8 +1,16 @@
 import jwt from "jsonwebtoken";
 import type { Request, Response, NextFunction } from "express";
 
-export const isAuth = (req: Request, res: Response, next: NextFunction) => {
-  const authHeader = req.get("Authorization");
+interface JwtPayload {
+  userId: string;
+}
+
+interface AuthRequest extends Request {
+  userId?: string;
+}
+
+export const isAuth = (req: AuthRequest, res: Response, next: NextFunction) => {
+  const authHeader: string | undefined = req.get("Authorization");
 
   if (!authHeader) {
     return res
@@ -10,19 +18,26 @@ export const isAuth = (req: Request, res: Response, next: NextFunction) => {
       .json({ message: "Authorisation header is missing!" });
   }
 
-  const token = authHeader.split(" ")[1];
+  const token: string | undefined = authHeader.split(" ")[1];
+
+  if (!token) {
+    return res.status(404).json({ message: "Token is missing in the header!" });
+  }
+
   let decodedToken;
 
   try {
-    decodedToken = jwt.verify(token, "secrettoken");
+    decodedToken = jwt.verify(
+      token,
+      process.env.JWT_SECRET || "secrettoken"
+    ) as JwtPayload;
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    if (error instanceof Error) {
+      return res.status(500).json({ message: error.message });
+    }
+    return res.status(500).json({ message: "Authentication failed" });
   }
 
-  if (!decodedToken) {
-    return res.status(400).json({ message: "Token is not valid" });
-  }
-
-  req.userId = decodedToken.userId;
+  req.userId = decodedToken.userId as string;
   next();
 };

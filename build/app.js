@@ -1,11 +1,10 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-require("dotenv").config();
-const express = require("express");
-const mongoose = require("mongoose");
-const bodyParser = require("body-parser");
-const router = require("./routers/routes");
-const authRoutes = require("./routers/auth");
+import dotenv from "dotenv";
+dotenv.config();
+import express from "express";
+import mongoose from "mongoose";
+import bodyParser from "body-parser";
+import feedRoutes from "./routers/feed.js";
+import authRoutes from "./routers/auth.js";
 const app = express();
 const { MONGO_USER, MONGO_PASSWORD, MONGO_HOST, MONGO_PORT, MONGO_DB, MONGO_AUTH_SOURCE, } = process.env;
 app.use(bodyParser.json()); // accept application/json
@@ -16,7 +15,7 @@ app.use((req, res, next) => {
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     next();
 });
-app.use("/feed", router);
+app.use("/feed", feedRoutes);
 app.use("/auth", authRoutes);
 const MONGO_URI = `mongodb://${MONGO_USER}:${MONGO_PASSWORD}@${MONGO_HOST}:${MONGO_PORT}/${MONGO_DB}?authSource=${MONGO_AUTH_SOURCE}`;
 mongoose

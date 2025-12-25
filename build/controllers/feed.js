@@ -1,12 +1,10 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-const Post = require("../models/model");
-const User = require("../models/user");
-exports.feedResponse = (req, res) => {
+import User from "../models/user.js";
+import Post from "../models/model.js";
+export const feedResponse = (req, res) => {
     console.log("I got data with accurate responses.");
     res.json({ id: 1, name: "kgn", age: 20 });
 };
-exports.feedPost = async (req, res) => {
+export const feedPost = async (req, res) => {
     const { title, content } = req.body;
     const image = req.file ? req.file.path : null;
     if (!title || !content) {
@@ -33,7 +31,7 @@ exports.feedPost = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
-exports.getPost = async (req, res) => {
+export const getPost = async (req, res) => {
     const postId = req.params.postId;
     try {
         const response = await Post.findById(postId);
@@ -43,7 +41,7 @@ exports.getPost = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
-exports.updatePost = async (req, res) => {
+export const updatePost = async (req, res) => {
     const postId = req.params.postId;
     const { title, content } = req.body;
     const image = req.file ? req.file.path : null;
@@ -67,7 +65,7 @@ exports.updatePost = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
-exports.deletePost = async (req, res) => {
+export const deletePost = async (req, res) => {
     const postId = req.params.postId;
     try {
         const post = await Post.findById(postId);

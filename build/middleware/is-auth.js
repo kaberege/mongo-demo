@@ -1,7 +1,5 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-const jwt = require("jsonwebtoken");
-module.exports = (req, res, next) => {
+import jwt from "jsonwebtoken";
+export const isAuth = (req, res, next) => {
     const authHeader = req.get("Authorization");
     if (!authHeader) {
         return res

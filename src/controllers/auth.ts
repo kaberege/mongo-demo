@@ -4,19 +4,31 @@ import Post from "../models/model.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
+interface RequestBody {
+  name: string;
+  email: string;
+  password: string;
+}
+
+interface UserData {
+  name?: string;
+  email?: string;
+  id?: Types.ObjectId[];
+}
+
 export const userAuth = async (req: Request, res: Response) => {
-  const { name, email, password } = req.body;
+  const { name, email, password } = req.body as RequestBody;
 
   try {
-    const hashedPW = await bcrypt.hash(password, 12);
-    const newUser = {
+    const hashedPW: string = await bcrypt.hash(password, 12);
+    const newUser: RequestBody = {
       name: name,
       email: email,
       password: hashedPW,
     };
 
     const user = await User.create(newUser);
-    const userData = {};
+    const userData: UserData = {};
     userData.name = user.name;
     userData.email = user.email;
     userData.id = user._id;
@@ -50,7 +62,7 @@ export const userLogin = async (req: Request, res: Response) => {
 
     const token = jwt.sign(
       { email: user.email, userId: user._id.toString() },
-      "secrettoken",
+      process.env.JWT_SECRET || "secrettoken",
       { expiresIn: "1h" }
     );
 

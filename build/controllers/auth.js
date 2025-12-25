@@ -1,10 +1,8 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-const User = require("../models/user");
-const Post = require("../models/model");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
-exports.userAuth = async (req, res) => {
+import User from "../models/user.js";
+import Post from "../models/model.js";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+export const userAuth = async (req, res) => {
     const { name, email, password } = req.body;
     try {
         const hashedPW = await bcrypt.hash(password, 12);
@@ -26,7 +24,7 @@ exports.userAuth = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
-exports.userLogin = async (req, res) => {
+export const userLogin = async (req, res) => {
     const email = req.body.email;
     const password = req.body.password;
     try {
@@ -51,7 +49,7 @@ exports.userLogin = async (req, res) => {
         res.status(500).json({ message: "Request failed", error: error.message });
     }
 };
-exports.userUpdate = async (req, res) => {
+export const userUpdate = async (req, res) => {
     const { name, email, password } = req.body;
     try {
         const user = await User.findById(req.userId);
@@ -76,7 +74,7 @@ exports.userUpdate = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
-exports.userDelete = async (req, res) => {
+export const userDelete = async (req, res) => {
     try {
         await User.findByIdAndDelete(req.userId);
         await Post.deleteMany({ creator: req.userId });
