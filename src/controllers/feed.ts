@@ -1,21 +1,38 @@
 import type { Request, Response } from "express";
+import { Types } from "mongoose";
 import User from "../models/user.js";
 import Post from "../models/model.js";
+
+interface CustomRequest extends Request {
+  userId: string;
+}
+
+interface RequestBody {
+  title: string;
+  content: string;
+}
+
+interface PostProps {
+  title: string;
+  imageURL: string | null;
+  content: string;
+  creator: string;
+}
 
 export const feedResponse = (req: Request, res: Response) => {
   console.log("I got data with accurate responses.");
   res.json({ id: 1, name: "kgn", age: 20 });
 };
 
-export const feedPost = async (req: Request, res: Response) => {
-  const { title, content } = req.body;
-  const image = req.file ? req.file.path : null;
+export const feedPost = async (req: CustomRequest, res: Response) => {
+  const { title, content } = req.body as RequestBody;
+  const image: string | null = req.file ? req.file.path : null;
 
   if (!title || !content) {
     return res.status(400).json({ message: "Title and content are required." });
   }
 
-  const newPost = {
+  const newPost: PostProps = {
     title: title,
     imageURL: image,
     content: content,
@@ -25,6 +42,9 @@ export const feedPost = async (req: Request, res: Response) => {
   try {
     const post = await Post.create(newPost);
     const user = await User.findById(post.creator);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
     user.posts.push(post._id);
     const results = await user.save();
 
@@ -34,7 +54,9 @@ export const feedPost = async (req: Request, res: Response) => {
       creatorName: results.name,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    const errorMessage =
+      error instanceof Error ? error.message : "Internal server error.";
+    res.status(500).json({ message: errorMessage });
   }
 };
 
@@ -44,13 +66,15 @@ export const getPost = async (req: Request, res: Response) => {
     const response = await Post.findById(postId);
     res.status(200).json(response);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    const errorMessage =
+      error instanceof Error ? error.message : "Internal server error.";
+    res.status(500).json({ message: errorMessage });
   }
 };
 
-export const updatePost = async (req: Request, res: Response) => {
-  const postId = req.params.postId;
-  const { title, content } = req.body;
+export const updatePost = async (req: CustomRequest, res: Response) => {
+  const postId: string | undefined = req.params.postId;
+  const { title, content } = req.body as RequestBody;
   const image = req.file ? req.file.path : null;
 
   try {
@@ -73,12 +97,14 @@ export const updatePost = async (req: Request, res: Response) => {
 
     res.status(200).json({ message: "Post updated.", data: result });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    const errorMessage =
+      error instanceof Error ? error.message : "Internal server error.";
+    res.status(500).json({ message: errorMessage });
   }
 };
 
-export const deletePost = async (req: Request, res: Response) => {
-  const postId = req.params.postId;
+export const deletePost = async (req: CustomRequest, res: Response) => {
+  const postId: string | undefined = req.params.postId;
 
   try {
     const post = await Post.findById(postId);
@@ -95,11 +121,18 @@ export const deletePost = async (req: Request, res: Response) => {
 
     await Post.findByIdAndDelete(postId);
     const user = await User.findById(req.userId);
-    user.posts.pull(postId);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    (user.posts as Types.DocumentArray<Types.ObjectId>).pull(postId);
     await user.save();
 
-    res.status(204).json({ message: "Post deleted successfully." });
+    res.status(204).send();
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    const errorMessage =
+      error instanceof Error ? error.message : "Internal server error.";
+    res.status(500).json({ message: errorMessage });
   }
 };

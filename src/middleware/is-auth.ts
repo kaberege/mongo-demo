@@ -5,11 +5,15 @@ interface JwtPayload {
   userId: string;
 }
 
-interface AuthRequest extends Request {
+interface CustomRequest extends Request {
   userId?: string;
 }
 
-export const isAuth = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const isAuth = (
+  req: CustomRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   const authHeader: string | undefined = req.get("Authorization");
 
   if (!authHeader) {
@@ -29,13 +33,12 @@ export const isAuth = (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     decodedToken = jwt.verify(
       token,
-      process.env.JWT_SECRET || "secrettoken"
+      process.env.JWT_SECRET || "secrettoken",
     ) as JwtPayload;
   } catch (error) {
-    if (error instanceof Error) {
-      return res.status(500).json({ message: error.message });
-    }
-    return res.status(500).json({ message: "Authentication failed" });
+    const errorMessage =
+      error instanceof Error ? error.message : "An unexpected error occurred";
+    return res.status(500).json({ message: errorMessage });
   }
 
   req.userId = decodedToken.userId as string;

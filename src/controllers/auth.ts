@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { Types } from "mongoose";
 import User from "../models/user.js";
 import Post from "../models/model.js";
 import bcrypt from "bcryptjs";
@@ -13,7 +14,11 @@ interface RequestBody {
 interface UserData {
   name?: string;
   email?: string;
-  id?: Types.ObjectId[];
+  id?: Types.ObjectId;
+}
+
+interface CustomRequest extends Request {
+  userId: string;
 }
 
 export const userAuth = async (req: Request, res: Response) => {
@@ -37,13 +42,14 @@ export const userAuth = async (req: Request, res: Response) => {
       .status(201)
       .json({ message: "User created successfully.", user: userData });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    const errorMessage =
+      error instanceof Error ? error.message : "Internal server error.";
+    res.status(500).json({ message: errorMessage });
   }
 };
 
 export const userLogin = async (req: Request, res: Response) => {
-  const email = req.body.email;
-  const password = req.body.password;
+  const { email, password } = req.body as RequestBody;
 
   try {
     const user = await User.findOne({ email: email });
@@ -54,36 +60,38 @@ export const userLogin = async (req: Request, res: Response) => {
         .json({ message: "User with that email not found!" });
     }
 
-    const isEqual = await bcrypt.compare(password, user.password);
+    const isEqual: boolean = await bcrypt.compare(password, user.password);
 
     if (!isEqual) {
       return res.status(400).json({ message: "Password did not match!" });
     }
 
-    const token = jwt.sign(
+    const token: string = jwt.sign(
       { email: user.email, userId: user._id.toString() },
       process.env.JWT_SECRET || "secrettoken",
-      { expiresIn: "1h" }
+      { expiresIn: "1h" },
     );
 
-    const userData = {};
+    const userData: UserData = {};
     userData.name = user.name;
     userData.email = user.email;
     userData.id = user._id;
 
     res.status(200).json({ token: token, user: userData });
   } catch (error) {
-    res.status(500).json({ message: "Request failed", error: error.message });
+    const errorMessage =
+      error instanceof Error ? error.message : "Internal server error.";
+    res.status(500).json({ message: errorMessage });
   }
 };
 
-export const userUpdate = async (req: Request, res: Response) => {
-  const { name, email, password } = req.body;
+export const userUpdate = async (req: CustomRequest, res: Response) => {
+  const { name, email, password } = req.body as RequestBody;
 
   try {
     const user = await User.findById(req.userId);
     if (!user) {
-      return res.send(404).json({ message: "User not found" });
+      return res.send(404).json({ message: "User not found." });
     }
     user.email = email || user.email;
     user.name = name || user.name;
@@ -92,23 +100,27 @@ export const userUpdate = async (req: Request, res: Response) => {
       user.password = hashedPW;
     }
     const updatedUser = await user.save();
-    const userData = {};
+    const userData: Omit<UserData, "id"> = {};
     userData.name = updatedUser.name;
     userData.email = updatedUser.email;
     res
       .status(200)
-      .json({ message: "User updated successfully", user: userData });
+      .json({ message: "User updated successfully.", user: userData });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    const errorMessage =
+      error instanceof Error ? error.message : "Internal server error.";
+    res.status(500).json({ message: errorMessage });
   }
 };
 
-export const userDelete = async (req: Request, res: Response) => {
+export const userDelete = async (req: CustomRequest, res: Response) => {
   try {
     await User.findByIdAndDelete(req.userId);
     await Post.deleteMany({ creator: req.userId });
-    res.status(204).json({ message: "User deleted successfully" });
+    res.status(204).json({ message: "User deleted successfully." });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    const errorMessage =
+      error instanceof Error ? error.message : "Internal server error.";
+    res.status(500).json({ message: errorMessage });
   }
 };
