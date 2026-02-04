@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import User from "../models/user.js";
 import Post from "../models/model.js";
 import bcrypt from "bcryptjs";
@@ -21,12 +22,12 @@ export const userAuth = async (req, res) => {
             .json({ message: "User created successfully.", user: userData });
     }
     catch (error) {
-        res.status(500).json({ message: error.message });
+        const errorMessage = error instanceof Error ? error.message : "Internal server error.";
+        res.status(500).json({ message: errorMessage });
     }
 };
 export const userLogin = async (req, res) => {
-    const email = req.body.email;
-    const password = req.body.password;
+    const { email, password } = req.body;
     try {
         const user = await User.findOne({ email: email });
         if (!user) {
@@ -38,7 +39,7 @@ export const userLogin = async (req, res) => {
         if (!isEqual) {
             return res.status(400).json({ message: "Password did not match!" });
         }
-        const token = jwt.sign({ email: user.email, userId: user._id.toString() }, "secrettoken", { expiresIn: "1h" });
+        const token = jwt.sign({ email: user.email, userId: user._id.toString() }, process.env.JWT_SECRET || "secrettoken", { expiresIn: "1h" });
         const userData = {};
         userData.name = user.name;
         userData.email = user.email;
@@ -46,15 +47,19 @@ export const userLogin = async (req, res) => {
         res.status(200).json({ token: token, user: userData });
     }
     catch (error) {
-        res.status(500).json({ message: "Request failed", error: error.message });
+        const errorMessage = error instanceof Error ? error.message : "Internal server error.";
+        res.status(500).json({ message: errorMessage });
     }
 };
 export const userUpdate = async (req, res) => {
     const { name, email, password } = req.body;
+    if (!req.userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+    }
     try {
         const user = await User.findById(req.userId);
         if (!user) {
-            return res.send(404).json({ message: "User not found" });
+            return res.status(404).json({ message: "User not found." });
         }
         user.email = email || user.email;
         user.name = name || user.name;
@@ -68,20 +73,25 @@ export const userUpdate = async (req, res) => {
         userData.email = updatedUser.email;
         res
             .status(200)
-            .json({ message: "User updated successfully", user: userData });
+            .json({ message: "User updated successfully.", user: userData });
     }
     catch (error) {
-        res.status(500).json({ message: error.message });
+        const errorMessage = error instanceof Error ? error.message : "Internal server error.";
+        res.status(500).json({ message: errorMessage });
     }
 };
 export const userDelete = async (req, res) => {
+    if (!req.userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+    }
     try {
         await User.findByIdAndDelete(req.userId);
         await Post.deleteMany({ creator: req.userId });
-        res.status(204).json({ message: "User deleted successfully" });
+        res.status(204).send();
     }
     catch (error) {
-        res.status(500).json({ message: error.message });
+        const errorMessage = error instanceof Error ? error.message : "Internal server error.";
+        res.status(500).json({ message: errorMessage });
     }
 };
 //# sourceMappingURL=auth.js.map

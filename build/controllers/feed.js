@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import User from "../models/user.js";
 import Post from "../models/model.js";
 export const feedResponse = (req, res) => {
@@ -7,6 +8,9 @@ export const feedResponse = (req, res) => {
 export const feedPost = async (req, res) => {
     const { title, content } = req.body;
     const image = req.file ? req.file.path : null;
+    if (!req.userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+    }
     if (!title || !content) {
         return res.status(400).json({ message: "Title and content are required." });
     }
@@ -19,6 +23,9 @@ export const feedPost = async (req, res) => {
     try {
         const post = await Post.create(newPost);
         const user = await User.findById(post.creator);
+        if (!user) {
+            return res.status(404).json({ message: "User not found." });
+        }
         user.posts.push(post._id);
         const results = await user.save();
         res.status(201).json({
@@ -28,7 +35,8 @@ export const feedPost = async (req, res) => {
         });
     }
     catch (error) {
-        res.status(500).json({ message: error.message });
+        const errorMessage = error instanceof Error ? error.message : "Internal server error.";
+        res.status(500).json({ message: errorMessage });
     }
 };
 export const getPost = async (req, res) => {
@@ -38,13 +46,17 @@ export const getPost = async (req, res) => {
         res.status(200).json(response);
     }
     catch (error) {
-        res.status(500).json({ message: error.message });
+        const errorMessage = error instanceof Error ? error.message : "Internal server error.";
+        res.status(500).json({ message: errorMessage });
     }
 };
 export const updatePost = async (req, res) => {
     const postId = req.params.postId;
     const { title, content } = req.body;
     const image = req.file ? req.file.path : null;
+    if (!req.userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+    }
     try {
         const post = await Post.findById(postId);
         if (!post) {
@@ -62,11 +74,15 @@ export const updatePost = async (req, res) => {
         res.status(200).json({ message: "Post updated.", data: result });
     }
     catch (error) {
-        res.status(500).json({ message: error.message });
+        const errorMessage = error instanceof Error ? error.message : "Internal server error.";
+        res.status(500).json({ message: errorMessage });
     }
 };
 export const deletePost = async (req, res) => {
     const postId = req.params.postId;
+    if (!req.userId) {
+        return res.status(401).json({ message: "Not authenticated" });
+    }
     try {
         const post = await Post.findById(postId);
         if (!post) {
@@ -79,12 +95,16 @@ export const deletePost = async (req, res) => {
         }
         await Post.findByIdAndDelete(postId);
         const user = await User.findById(req.userId);
+        if (!user) {
+            return res.status(404).json({ message: "User not found." });
+        }
         user.posts.pull(postId);
         await user.save();
-        res.status(204).json({ message: "Post deleted successfully." });
+        res.status(204).send();
     }
     catch (error) {
-        res.status(500).json({ message: error.message });
+        const errorMessage = error instanceof Error ? error.message : "Internal server error.";
+        res.status(500).json({ message: errorMessage });
     }
 };
 //# sourceMappingURL=feed.js.map

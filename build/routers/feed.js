@@ -1,7 +1,7 @@
-import express from "express";
+import express, {} from "express";
 import { feedResponse, feedPost, getPost, updatePost, deletePost, } from "../controllers/feed.js";
 import { isAuth } from "../middleware/is-auth.js";
-import multer from "multer";
+import multer, {} from "multer";
 const router = express.Router();
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {

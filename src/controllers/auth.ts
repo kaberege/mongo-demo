@@ -18,7 +18,7 @@ interface UserData {
 }
 
 interface CustomRequest extends Request {
-  userId: string;
+  userId?: string;
 }
 
 export const userAuth = async (req: Request, res: Response) => {
@@ -88,10 +88,14 @@ export const userLogin = async (req: Request, res: Response) => {
 export const userUpdate = async (req: CustomRequest, res: Response) => {
   const { name, email, password } = req.body as RequestBody;
 
+  if (!req.userId) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+
   try {
     const user = await User.findById(req.userId);
     if (!user) {
-      return res.send(404).json({ message: "User not found." });
+      return res.status(404).json({ message: "User not found." });
     }
     user.email = email || user.email;
     user.name = name || user.name;
@@ -114,10 +118,14 @@ export const userUpdate = async (req: CustomRequest, res: Response) => {
 };
 
 export const userDelete = async (req: CustomRequest, res: Response) => {
+  if (!req.userId) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+
   try {
     await User.findByIdAndDelete(req.userId);
     await Post.deleteMany({ creator: req.userId });
-    res.status(204).json({ message: "User deleted successfully." });
+    res.status(204).send();
   } catch (error) {
     const errorMessage =
       error instanceof Error ? error.message : "Internal server error.";

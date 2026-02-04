@@ -4,7 +4,7 @@ import User from "../models/user.js";
 import Post from "../models/model.js";
 
 interface CustomRequest extends Request {
-  userId: string;
+  userId?: string;
 }
 
 interface RequestBody {
@@ -27,6 +27,10 @@ export const feedResponse = (req: Request, res: Response) => {
 export const feedPost = async (req: CustomRequest, res: Response) => {
   const { title, content } = req.body as RequestBody;
   const image: string | null = req.file ? req.file.path : null;
+
+  if (!req.userId) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
 
   if (!title || !content) {
     return res.status(400).json({ message: "Title and content are required." });
@@ -77,6 +81,10 @@ export const updatePost = async (req: CustomRequest, res: Response) => {
   const { title, content } = req.body as RequestBody;
   const image = req.file ? req.file.path : null;
 
+  if (!req.userId) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
+
   try {
     const post = await Post.findById(postId);
 
@@ -105,6 +113,10 @@ export const updatePost = async (req: CustomRequest, res: Response) => {
 
 export const deletePost = async (req: CustomRequest, res: Response) => {
   const postId: string | undefined = req.params.postId;
+
+  if (!req.userId) {
+    return res.status(401).json({ message: "Not authenticated" });
+  }
 
   try {
     const post = await Post.findById(postId);
