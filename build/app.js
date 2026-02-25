@@ -1,12 +1,11 @@
-import dotenv from "dotenv";
-dotenv.config();
 import express from "express";
 import mongoose from "mongoose";
 import bodyParser from "body-parser";
+import { MONGO_URI, PORT } from "./utils/config.js";
 import feedRoutes from "./routers/feed.js";
 import authRoutes from "./routers/auth.js";
+import swagger from "./utils/swagger.js";
 const app = express();
-const { MONGO_USER, MONGO_PASSWORD, MONGO_HOST, MONGO_PORT, MONGO_DB, MONGO_AUTH_SOURCE, } = process.env;
 app.use(bodyParser.json()); // accept application/json
 app.use("/static", express.static("public"));
 app.use((req, res, next) => {
@@ -17,13 +16,13 @@ app.use((req, res, next) => {
 });
 app.use("/feed", feedRoutes);
 app.use("/auth", authRoutes);
-const MONGO_URI = `mongodb://${MONGO_USER}:${MONGO_PASSWORD}@${MONGO_HOST}:${MONGO_PORT}/${MONGO_DB}?authSource=${MONGO_AUTH_SOURCE}`;
+app.use("/api-docs", swagger);
 mongoose
     .connect(MONGO_URI)
     .then((result) => {
     console.log("Mongoose is connected!");
-    app.listen(8000, () => {
-        console.log("Express is listening to the port 8000");
+    app.listen(PORT, () => {
+        console.log(`Express is listening to the port ${PORT}`);
     });
 })
     .catch((error) => {
