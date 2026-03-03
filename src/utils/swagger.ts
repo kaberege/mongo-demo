@@ -24,6 +24,7 @@ const options: swaggerJSDoc.Options = {
         email: "nestor.godard.kaberege@gmail.com",
       },
     },
+    tags: [{ name: "auth", description: "Authorization APIs" }],
     servers: [
       {
         url: `http://localhost:${PORT}`,
@@ -47,7 +48,7 @@ const options: swaggerJSDoc.Options = {
       },
     },
   },
-  apis: [".src/routers/*.{ts,js}", ".build/routers/*.{ts,js}"],
+  apis: [".src/routes/*.{ts,js}", ".build/routes/*.{ts,js}"],
 };
 
 const specs = swaggerJSDoc(options);
