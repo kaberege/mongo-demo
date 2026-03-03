@@ -3,8 +3,8 @@ import type { Request, Response, NextFunction } from "express";
 import mongoose from "mongoose";
 import bodyParser from "body-parser";
 import { MONGO_URI, PORT } from "./utils/config.js";
-import feedRoutes from "./routers/feed.js";
-import authRoutes from "./routers/auth.js";
+import feedRoutes from "./routes/feed.js";
+import authRoutes from "./routes/auth.js";
 import swagger from "./utils/swagger.js";
 
 const app = express();
