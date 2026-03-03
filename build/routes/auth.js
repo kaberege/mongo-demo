@@ -3,7 +3,26 @@ import { userAuth, userLogin, userUpdate, userDelete, } from "../controllers/aut
 import { isAuth } from "../middleware/is-auth.js";
 const router = express.Router();
 /**
- *hhh
+ * @swagger
+ * /auth/signup:
+ *   post:
+ *     summary: Register a new user
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/User'
+ *     responses:
+ *       201:
+ *         description: User created
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/UserResponse'
+ *       500:
+ *         description: Some server error
  */
 router.post("/signup", userAuth);
 router.post("/login", userLogin);
