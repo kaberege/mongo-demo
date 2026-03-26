@@ -3,10 +3,6 @@ import { Types } from "mongoose";
 import User from "../models/user.js";
 import Post from "../models/model.js";
 
-interface CustomRequest extends Request {
-  userId?: string;
-}
-
 interface RequestBody {
   title: string;
   content: string;
@@ -24,7 +20,7 @@ export const feedResponse = (req: Request, res: Response) => {
   res.json({ id: 1, name: "kgn", age: 20 });
 };
 
-export const feedPost = async (req: CustomRequest, res: Response) => {
+export const feedPost = async (req: Request, res: Response) => {
   const { title, content } = req.body as RequestBody;
   const image: string | null = req.file ? req.file.path : null;
 
@@ -76,7 +72,7 @@ export const getPost = async (req: Request, res: Response) => {
   }
 };
 
-export const updatePost = async (req: CustomRequest, res: Response) => {
+export const updatePost = async (req: Request, res: Response) => {
   const postId: string | undefined = req.params.postId;
   const { title, content } = req.body as RequestBody;
   const image = req.file ? req.file.path : null;
@@ -111,7 +107,7 @@ export const updatePost = async (req: CustomRequest, res: Response) => {
   }
 };
 
-export const deletePost = async (req: CustomRequest, res: Response) => {
+export const deletePost = async (req: Request, res: Response) => {
   const postId: string | undefined = req.params.postId;
 
   if (!req.userId) {

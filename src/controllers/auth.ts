@@ -17,10 +17,6 @@ interface UserData {
   id?: Types.ObjectId;
 }
 
-interface CustomRequest extends Request {
-  userId?: string;
-}
-
 export const userAuth = async (req: Request, res: Response) => {
   const { name, email, password } = req.body as RequestBody;
 
@@ -85,7 +81,7 @@ export const userLogin = async (req: Request, res: Response) => {
   }
 };
 
-export const userUpdate = async (req: CustomRequest, res: Response) => {
+export const userUpdate = async (req: Request, res: Response) => {
   const { name, email, password } = req.body as RequestBody;
 
   if (!req.userId) {
@@ -117,7 +113,7 @@ export const userUpdate = async (req: CustomRequest, res: Response) => {
   }
 };
 
-export const userDelete = async (req: CustomRequest, res: Response) => {
+export const userDelete = async (req: Request, res: Response) => {
   if (!req.userId) {
     return res.status(401).json({ message: "Not authenticated" });
   }
