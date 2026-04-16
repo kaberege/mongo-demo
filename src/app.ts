@@ -24,6 +24,21 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 app.use("/feed", feedRoutes);
 app.use("/auth", authRoutes);
 app.use("/api-docs", swagger);
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const error = new Error("Resource not found");
+  (error as any).status = 404;
+  next(error);
+});
+app.use((error: any, req: Request, res: Response, next: NextFunction) => {
+  const status = error.statusCode || 500;
+  const message = error.message || "An unexpected error occurred.";
+  const data = error.data;
+
+  res.status(status).json({
+    message: message,
+    errors: data,
+  });
+});
 
 mongoose
   .connect(MONGO_URI)
