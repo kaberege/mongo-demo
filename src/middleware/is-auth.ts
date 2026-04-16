@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import type { Request, Response, NextFunction } from "express";
+import type { HttpError } from "../utils/interfaces.js";
 
 interface JwtPayload {
   userId: string;
@@ -17,15 +18,17 @@ export const isAuth = (
   const authHeader: string | undefined = req.get("Authorization");
 
   if (!authHeader) {
-    return res
-      .status(404)
-      .json({ message: "Authorisation header is missing!" });
+    const error = new Error("Authorization header is missing!") as HttpError;
+    error.statusCode = 401;
+    return next(error);
   }
 
   const token: string | undefined = authHeader.split(" ")[1];
 
   if (!token) {
-    return res.status(404).json({ message: "Token is missing in the header!" });
+    const error = new Error("Token is missing in the header!") as HttpError;
+    error.statusCode = 401;
+    return next(error);
   }
 
   let decodedToken;
@@ -35,10 +38,15 @@ export const isAuth = (
       token,
       process.env.JWT_SECRET || "secrettoken",
     ) as JwtPayload;
-  } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "An unexpected error occurred";
-    return res.status(500).json({ message: errorMessage });
+  } catch (error: any) {
+    error.statusCode = 401;
+    return next(error);
+  }
+
+  if (!decodedToken) {
+    const error = new Error("Not authenticated.") as HttpError;
+    error.statusCode = 401;
+    return next(error);
   }
 
   req.userId = decodedToken.userId as string;

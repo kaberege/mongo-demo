@@ -1,7 +1,8 @@
-import type { Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import { Types } from "mongoose";
 import User from "../models/user.js";
 import Post from "../models/model.js";
+import type { HttpError } from "../utils/interfaces.js";
 
 interface RequestBody {
   title: string;
@@ -20,16 +21,24 @@ export const feedResponse = (req: Request, res: Response) => {
   res.json({ id: 1, name: "kgn", age: 20 });
 };
 
-export const feedPost = async (req: Request, res: Response) => {
+export const feedPost = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   const { title, content } = req.body as RequestBody;
   const image: string | null = req.file ? req.file.path : null;
 
   if (!req.userId) {
-    return res.status(401).json({ message: "Not authenticated" });
+    const error = new Error("Not authenticated") as HttpError;
+    error.statusCode = 401;
+    return next(error);
   }
 
   if (!title || !content) {
-    return res.status(400).json({ message: "Title and content are required." });
+    const error = new Error("Title and content are required.") as HttpError;
+    error.statusCode = 400;
+    return next(error);
   }
 
   const newPost: PostProps = {
@@ -43,7 +52,9 @@ export const feedPost = async (req: Request, res: Response) => {
     const post = await Post.create(newPost);
     const user = await User.findById(post.creator);
     if (!user) {
-      return res.status(404).json({ message: "User not found." });
+      const error = new Error("User not found.") as HttpError;
+      error.statusCode = 404;
+      throw error;
     }
     user.posts.push(post._id);
     const results = await user.save();
@@ -54,44 +65,61 @@ export const feedPost = async (req: Request, res: Response) => {
       creatorName: results.name,
     });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Internal server error.";
-    res.status(500).json({ message: errorMessage });
+    next(error);
   }
 };
 
-export const getPost = async (req: Request, res: Response) => {
+export const getPost = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   const postId = req.params.postId;
   try {
-    const response = await Post.findById(postId);
-    res.status(200).json(response);
+    const post = await Post.findById(postId);
+
+    if (!post) {
+      const error = new Error("No post found!") as HttpError;
+      error.statusCode = 404;
+      throw error;
+    }
+
+    res.status(200).json(post);
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Internal server error.";
-    res.status(500).json({ message: errorMessage });
+    next(error);
   }
 };
 
-export const updatePost = async (req: Request, res: Response) => {
+export const updatePost = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   const postId: string | undefined = req.params.postId;
   const { title, content } = req.body as RequestBody;
   const image = req.file ? req.file.path : null;
 
   if (!req.userId) {
-    return res.status(401).json({ message: "Not authenticated" });
+    const error = new Error("Not authenticated") as HttpError;
+    error.statusCode = 401;
+    return next(error);
   }
 
   try {
     const post = await Post.findById(postId);
 
     if (!post) {
-      return res.status(404).json({ message: "No post found!" });
+      const error = new Error("No post found!") as HttpError;
+      error.statusCode = 404;
+      throw error;
     }
 
     if (post.creator.toString() !== req.userId) {
-      return res
-        .status(403)
-        .json({ message: "You can only update your own posts" });
+      const error = new Error(
+        "You can only update your own posts",
+      ) as HttpError;
+      error.statusCode = 403;
+      throw error;
     }
 
     post.title = title || post.title;
@@ -101,37 +129,47 @@ export const updatePost = async (req: Request, res: Response) => {
 
     res.status(200).json({ message: "Post updated.", data: result });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Internal server error.";
-    res.status(500).json({ message: errorMessage });
+    next(error);
   }
 };
 
-export const deletePost = async (req: Request, res: Response) => {
+export const deletePost = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   const postId: string | undefined = req.params.postId;
 
   if (!req.userId) {
-    return res.status(401).json({ message: "Not authenticated" });
+    const error = new Error("Not authenticated") as HttpError;
+    error.statusCode = 401;
+    return next(error);
   }
 
   try {
     const post = await Post.findById(postId);
 
     if (!post) {
-      return res.status(404).json({ message: "No post found!" });
+      const error = new Error("No post found!") as HttpError;
+      error.statusCode = 404;
+      throw error;
     }
 
     if (post.creator.toString() !== req.userId) {
-      return res
-        .status(403)
-        .json({ message: "You can only delete your own posts" });
+      const error = new Error(
+        "You can only delete your own posts",
+      ) as HttpError;
+      error.statusCode = 403;
+      throw error;
     }
 
     await Post.findByIdAndDelete(postId);
     const user = await User.findById(req.userId);
 
     if (!user) {
-      return res.status(404).json({ message: "User not found." });
+      const error = new Error("User not found.") as HttpError;
+      error.statusCode = 404;
+      throw error;
     }
 
     (user.posts as Types.DocumentArray<Types.ObjectId>).pull(postId);
@@ -139,8 +177,6 @@ export const deletePost = async (req: Request, res: Response) => {
 
     res.status(204).send();
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Internal server error.";
-    res.status(500).json({ message: errorMessage });
+    next(error);
   }
 };

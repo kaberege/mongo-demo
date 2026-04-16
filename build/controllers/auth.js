@@ -3,7 +3,7 @@ import User from "../models/user.js";
 import Post from "../models/model.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-export const userAuth = async (req, res) => {
+export const userAuth = async (req, res, next) => {
     const { name, email, password } = req.body;
     try {
         const hashedPW = await bcrypt.hash(password, 12);
@@ -22,22 +22,23 @@ export const userAuth = async (req, res) => {
             .json({ message: "User created successfully.", user: userData });
     }
     catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Internal server error.";
-        res.status(500).json({ message: errorMessage });
+        next(error);
     }
 };
-export const userLogin = async (req, res) => {
+export const userLogin = async (req, res, next) => {
     const { email, password } = req.body;
     try {
         const user = await User.findOne({ email: email });
         if (!user) {
-            return res
-                .status(404)
-                .json({ message: "User with that email not found!" });
+            const error = new Error("User with that email not found!");
+            error.statusCode = 401;
+            throw error;
         }
         const isEqual = await bcrypt.compare(password, user.password);
         if (!isEqual) {
-            return res.status(400).json({ message: "Password did not match!" });
+            const error = new Error("Password did not match!");
+            error.statusCode = 401;
+            throw error;
         }
         const token = jwt.sign({ email: user.email, userId: user._id.toString() }, process.env.JWT_SECRET || "secrettoken", { expiresIn: "1h" });
         const userData = {};
@@ -47,19 +48,22 @@ export const userLogin = async (req, res) => {
         res.status(200).json({ token: token, user: userData });
     }
     catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Internal server error.";
-        res.status(500).json({ message: errorMessage });
+        next(error);
     }
 };
-export const userUpdate = async (req, res) => {
+export const userUpdate = async (req, res, next) => {
     const { name, email, password } = req.body;
     if (!req.userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+        const error = new Error("Not authenticated");
+        error.statusCode = 401;
+        return next(error);
     }
     try {
         const user = await User.findById(req.userId);
         if (!user) {
-            return res.status(404).json({ message: "User not found." });
+            const error = new Error("User not found.");
+            error.statusCode = 404;
+            throw error;
         }
         user.email = email || user.email;
         user.name = name || user.name;
@@ -76,13 +80,14 @@ export const userUpdate = async (req, res) => {
             .json({ message: "User updated successfully.", user: userData });
     }
     catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Internal server error.";
-        res.status(500).json({ message: errorMessage });
+        next(error);
     }
 };
-export const userDelete = async (req, res) => {
+export const userDelete = async (req, res, next) => {
     if (!req.userId) {
-        return res.status(401).json({ message: "Not authenticated" });
+        const error = new Error("Not authenticated");
+        error.statusCode = 401;
+        return next(error);
     }
     try {
         await User.findByIdAndDelete(req.userId);
@@ -90,8 +95,7 @@ export const userDelete = async (req, res) => {
         res.status(204).send();
     }
     catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Internal server error.";
-        res.status(500).json({ message: errorMessage });
+        next(error);
     }
 };
 //# sourceMappingURL=auth.js.map

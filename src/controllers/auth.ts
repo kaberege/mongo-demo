@@ -1,9 +1,10 @@
-import type { Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import { Types } from "mongoose";
 import User from "../models/user.js";
 import Post from "../models/model.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import type { HttpError } from "../utils/interfaces.js";
 
 interface RequestBody {
   name: string;
@@ -17,7 +18,11 @@ interface UserData {
   id?: Types.ObjectId;
 }
 
-export const userAuth = async (req: Request, res: Response) => {
+export const userAuth = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   const { name, email, password } = req.body as RequestBody;
 
   try {
@@ -38,28 +43,32 @@ export const userAuth = async (req: Request, res: Response) => {
       .status(201)
       .json({ message: "User created successfully.", user: userData });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Internal server error.";
-    res.status(500).json({ message: errorMessage });
+    next(error);
   }
 };
 
-export const userLogin = async (req: Request, res: Response) => {
+export const userLogin = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   const { email, password } = req.body as RequestBody;
 
   try {
     const user = await User.findOne({ email: email });
 
     if (!user) {
-      return res
-        .status(404)
-        .json({ message: "User with that email not found!" });
+      const error = new Error("User with that email not found!") as HttpError;
+      error.statusCode = 401;
+      throw error;
     }
 
     const isEqual: boolean = await bcrypt.compare(password, user.password);
 
     if (!isEqual) {
-      return res.status(400).json({ message: "Password did not match!" });
+      const error = new Error("Password did not match!") as HttpError;
+      error.statusCode = 401;
+      throw error;
     }
 
     const token: string = jwt.sign(
@@ -75,23 +84,29 @@ export const userLogin = async (req: Request, res: Response) => {
 
     res.status(200).json({ token: token, user: userData });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Internal server error.";
-    res.status(500).json({ message: errorMessage });
+    next(error);
   }
 };
 
-export const userUpdate = async (req: Request, res: Response) => {
+export const userUpdate = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   const { name, email, password } = req.body as RequestBody;
 
   if (!req.userId) {
-    return res.status(401).json({ message: "Not authenticated" });
+    const error = new Error("Not authenticated") as HttpError;
+    error.statusCode = 401;
+    return next(error);
   }
 
   try {
     const user = await User.findById(req.userId);
     if (!user) {
-      return res.status(404).json({ message: "User not found." });
+      const error = new Error("User not found.") as HttpError;
+      error.statusCode = 404;
+      throw error;
     }
     user.email = email || user.email;
     user.name = name || user.name;
@@ -107,15 +122,19 @@ export const userUpdate = async (req: Request, res: Response) => {
       .status(200)
       .json({ message: "User updated successfully.", user: userData });
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Internal server error.";
-    res.status(500).json({ message: errorMessage });
+    next(error);
   }
 };
 
-export const userDelete = async (req: Request, res: Response) => {
+export const userDelete = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
   if (!req.userId) {
-    return res.status(401).json({ message: "Not authenticated" });
+    const error = new Error("Not authenticated") as HttpError;
+    error.statusCode = 401;
+    return next(error);
   }
 
   try {
@@ -123,8 +142,6 @@ export const userDelete = async (req: Request, res: Response) => {
     await Post.deleteMany({ creator: req.userId });
     res.status(204).send();
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : "Internal server error.";
-    res.status(500).json({ message: errorMessage });
+    next(error);
   }
 };
