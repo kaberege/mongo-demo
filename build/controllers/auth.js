@@ -4,7 +4,13 @@ import Post from "../models/model.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 export const userAuth = async (req, res, next) => {
-    const { name, email, password } = req.body;
+    // If req.body is undefined, it defaults to {}, avoiding the destructure crash
+    const { name, email, password } = (req.body || {});
+    if (!name || !email || !password) {
+        const error = new Error("Missing required fields");
+        error.statusCode = 400;
+        return next(error);
+    }
     try {
         const hashedPW = await bcrypt.hash(password, 12);
         const newUser = {
@@ -26,7 +32,13 @@ export const userAuth = async (req, res, next) => {
     }
 };
 export const userLogin = async (req, res, next) => {
-    const { email, password } = req.body;
+    // If req.body is undefined, it defaults to {}, avoiding the destructure crash
+    const { email, password } = (req.body || {});
+    if (!email || !password) {
+        const error = new Error("Missing required fields");
+        error.statusCode = 400;
+        return next(error);
+    }
     try {
         const user = await User.findOne({ email: email });
         if (!user) {

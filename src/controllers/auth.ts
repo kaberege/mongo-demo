@@ -23,7 +23,14 @@ export const userAuth = async (
   res: Response,
   next: NextFunction,
 ) => {
-  const { name, email, password } = req.body as RequestBody;
+  // If req.body is undefined, it defaults to {}, avoiding the destructure crash
+  const { name, email, password } = (req.body || {}) as RequestBody;
+
+  if (!name || !email || !password) {
+    const error = new Error("Missing required fields") as HttpError;
+    error.statusCode = 400;
+    return next(error);
+  }
 
   try {
     const hashedPW: string = await bcrypt.hash(password, 12);
@@ -52,7 +59,14 @@ export const userLogin = async (
   res: Response,
   next: NextFunction,
 ) => {
-  const { email, password } = req.body as RequestBody;
+  // If req.body is undefined, it defaults to {}, avoiding the destructure crash
+  const { email, password } = (req.body || {}) as RequestBody;
+
+  if (!email || !password) {
+    const error = new Error("Missing required fields") as HttpError;
+    error.statusCode = 400;
+    return next(error);
+  }
 
   try {
     const user = await User.findOne({ email: email });
