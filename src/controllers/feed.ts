@@ -26,7 +26,7 @@ export const feedPost = async (
   res: Response,
   next: NextFunction,
 ) => {
-  const { title, content } = req.body as RequestBody;
+  const { title, content } = (req.body || {}) as RequestBody;
   const image: string | null = req.file ? req.file.path : null;
 
   if (!req.userId) {
@@ -96,7 +96,7 @@ export const updatePost = async (
   next: NextFunction,
 ) => {
   const postId: string | undefined = req.params.postId;
-  const { title, content } = req.body as RequestBody;
+  const { title, content } = (req.body || {}) as RequestBody;
   const image = req.file ? req.file.path : null;
 
   if (!req.userId) {

@@ -6,7 +6,7 @@ export const feedResponse = (req, res) => {
     res.json({ id: 1, name: "kgn", age: 20 });
 };
 export const feedPost = async (req, res, next) => {
-    const { title, content } = req.body;
+    const { title, content } = (req.body || {});
     const image = req.file ? req.file.path : null;
     if (!req.userId) {
         const error = new Error("Not authenticated");
@@ -61,7 +61,7 @@ export const getPost = async (req, res, next) => {
 };
 export const updatePost = async (req, res, next) => {
     const postId = req.params.postId;
-    const { title, content } = req.body;
+    const { title, content } = (req.body || {});
     const image = req.file ? req.file.path : null;
     if (!req.userId) {
         const error = new Error("Not authenticated");
