@@ -3,6 +3,21 @@ import multer from "multer";
 import { v4 as uuidv4 } from "uuid";
 import path from "path";
 import fs from "fs";
+import { unlink } from "fs/promises";
+
+const UPLOADS_DIR = "./public/uploads";
+
+try {
+  if (!fs.existsSync(UPLOADS_DIR)) {
+    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  }
+} catch (bootError) {
+  console.error(
+    "CRITICAL: Failed to initialize upload directories:",
+    bootError,
+  );
+  process.exit(1); // Hard exit because the app cannot function without its upload directory
+}
 
 const storage = multer.diskStorage({
   destination: (
@@ -10,9 +25,7 @@ const storage = multer.diskStorage({
     file: Express.Multer.File,
     cb: (error: Error | null, destination: string) => void,
   ) => {
-    const dir = "./public/uploads";
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
+    cb(null, UPLOADS_DIR);
   },
   filename: (req, file, cb) => {
     cb(null, `${uuidv4()}${path.extname(file.originalname)}`);
@@ -31,7 +44,10 @@ const fileFilter = (
   ) {
     cb(null, true);
   } else {
-    cb(null, false);
+    const fileUploadError: Error = new Error(
+      "Invalid file structure: Only PNG, JPG, JPEG, and WEBP formats are authorized.",
+    );
+    cb(fileUploadError as any, false);
   }
 };
 
@@ -41,10 +57,19 @@ export const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
 });
 
-export const clearImage = (filePath: string) => {
+export const clearImage = async (filePath: string): Promise<void> => {
+  if (!filePath) return;
+
   const resolvedPath = path.resolve(filePath);
-  fs.unlink(resolvedPath, (err) => {
-    if (err && err.code !== "ENOENT")
-      console.error(`Storage Warning: File cleanup skipped at ${resolvedPath}`);
-  });
+  try {
+    await unlink(resolvedPath);
+  } catch (err: any) {
+    // Safely ignore it if ENOENT:  means the file was already deleted or doesn't exist.
+    if (err.code !== "ENOENT") {
+      console.error(
+        `Storage Warning: File cleanup skipped at ${resolvedPath}`,
+        err,
+      );
+    }
+  }
 };

@@ -3,26 +3,26 @@ declare const _default: mongoose.Model<{
     createdAt: NativeDate;
     updatedAt: NativeDate;
 } & {
+    creator: mongoose.Types.ObjectId;
     title: string;
     content: string;
     imageURL: string;
-    creator: mongoose.Types.ObjectId;
 }, {}, {}, {}, mongoose.Document<unknown, {}, {
     createdAt: NativeDate;
     updatedAt: NativeDate;
 } & {
+    creator: mongoose.Types.ObjectId;
     title: string;
     content: string;
     imageURL: string;
-    creator: mongoose.Types.ObjectId;
 }> & {
     createdAt: NativeDate;
     updatedAt: NativeDate;
 } & {
+    creator: mongoose.Types.ObjectId;
     title: string;
     content: string;
     imageURL: string;
-    creator: mongoose.Types.ObjectId;
 } & {
     _id: mongoose.Types.ObjectId;
 } & {
@@ -33,26 +33,26 @@ declare const _default: mongoose.Model<{
     createdAt: NativeDate;
     updatedAt: NativeDate;
 } & {
+    creator: mongoose.Types.ObjectId;
     title: string;
     content: string;
     imageURL: string;
-    creator: mongoose.Types.ObjectId;
 }, mongoose.Document<unknown, {}, mongoose.FlatRecord<{
     createdAt: NativeDate;
     updatedAt: NativeDate;
 } & {
+    creator: mongoose.Types.ObjectId;
     title: string;
     content: string;
     imageURL: string;
-    creator: mongoose.Types.ObjectId;
 }>> & mongoose.FlatRecord<{
     createdAt: NativeDate;
     updatedAt: NativeDate;
 } & {
+    creator: mongoose.Types.ObjectId;
     title: string;
     content: string;
     imageURL: string;
-    creator: mongoose.Types.ObjectId;
 }> & {
     _id: mongoose.Types.ObjectId;
 } & {

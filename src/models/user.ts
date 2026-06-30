@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import type { HttpError } from "../utils/interfaces.js";
 
 const Schema = mongoose.Schema;
 
@@ -43,16 +44,29 @@ userSchema.virtual("posts", {
 
 // Middleware Cascade: Purge all dependencies if a profile is deleted
 userSchema.pre("findOneAndDelete", async function (next) {
-  const user = await this.model.findOne(this.getQuery());
-  if (user) {
-    const posts = await mongoose.model("Post").find({ creator: user._id });
-    const { clearImage } = await import("../utils/file-upload.js");
-    for (const post of posts) {
-      if (post.imageURL) clearImage(post.imageURL);
+  try {
+    const user = await this.model.findOne(this.getQuery());
+
+    if (user) {
+      const posts = await mongoose.model("Post").find({ creator: user._id });
+
+      if (posts.length > 0) {
+        const { clearImage } = await import("../utils/file-upload.js");
+
+        const deletionPromises = posts
+          .filter((post) => post.imageURL)
+          .map((post) => clearImage(post.imageURL));
+
+        // Wait for all file deletions to finish simultaneously
+        await Promise.all(deletionPromises);
+
+        await mongoose.model("Post").deleteMany({ creator: user._id });
+      }
     }
-    await mongoose.model("Post").deleteMany({ creator: user._id });
+    next();
+  } catch (error) {
+    next(error as HttpError);
   }
-  next();
 });
 
 export default mongoose.model("User", userSchema);
