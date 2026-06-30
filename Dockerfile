@@ -29,7 +29,8 @@ COPY --from=deps /app/node_modules ./node_modules
 # Compiled output 
 COPY --from=build /app/build ./build
 # For metadata                 
-COPY --from=build /app/package.json ./              
+COPY --from=build /app/package*.json ./   
+COPY --from=build /app/public ./public           
 
 # Set ownership and switch to non-root user
 RUN chown -R nodejs:nodejs /app
