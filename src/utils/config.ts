@@ -8,6 +8,7 @@ export const {
   MONGO_PORT,
   MONGO_DB,
   MONGO_AUTH_SOURCE,
+  JWT_SECRET,
   PORT = "8000",
 } = process.env;
 

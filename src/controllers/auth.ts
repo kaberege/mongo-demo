@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { Types } from "mongoose";
 import User from "../models/user.js";
-import Post from "../models/model.js";
+import Post from "../models/post.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import type { HttpError } from "../utils/interfaces.js";

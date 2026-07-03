@@ -1,17 +1,16 @@
 import jwt from "jsonwebtoken";
 import type { Request, Response, NextFunction } from "express";
 import type { HttpError } from "../utils/interfaces.js";
+import { JWT_SECRET } from "../utils/config.js";
+import TokenBlacklist from "../models/token-blacklist.js";
 
-interface JwtPayload {
+interface DecodedToken {
   userId: string;
+  role: "user" | "editor" | "admin";
 }
 
-interface CustomRequest extends Request {
-  userId?: string;
-}
-
-export const isAuth = (
-  req: CustomRequest,
+export const isAuth = async (
+  req: Request,
   res: Response,
   next: NextFunction,
 ) => {
@@ -31,24 +30,33 @@ export const isAuth = (
     return next(error);
   }
 
-  let decodedToken;
-
   try {
-    decodedToken = jwt.verify(
+    const isBlacklisted = await TokenBlacklist.findOne({ token });
+
+    if (isBlacklisted) {
+      const error = new Error("Session key invalid or revoked.") as HttpError;
+      error.statusCode = 401;
+      return next(error);
+    }
+
+    const decodedToken = jwt.verify(
       token,
-      process.env.JWT_SECRET || "secrettoken",
-    ) as JwtPayload;
+      JWT_SECRET || "secrettoken",
+    ) as DecodedToken;
+
+    if (!decodedToken) {
+      const error = new Error(
+        "Cryptographic verification failed.",
+      ) as HttpError;
+      error.statusCode = 401;
+      return next(error);
+    }
+
+    req.userId = decodedToken.userId as string;
+    req.userRole = decodedToken.role;
+    next();
   } catch (error: any) {
     error.statusCode = 401;
     return next(error);
   }
-
-  if (!decodedToken) {
-    const error = new Error("Not authenticated.") as HttpError;
-    error.statusCode = 401;
-    return next(error);
-  }
-
-  req.userId = decodedToken.userId as string;
-  next();
 };

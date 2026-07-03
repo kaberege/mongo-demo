@@ -25,16 +25,8 @@ services:
     healthcheck:
       test:
         [
-          "CMD",
-          "mongo",
-          "--username",
-          "${MONGO_USER}",
-          "--password",
-          "${MONGO_PASSWORD}",
-          "--authenticationDatabase",
-          "admin",
-          "--eval",
-          "db.adminCommand('ping')",
+          "CMD-SHELL",
+          'mongo --username ${MONGO_USER} --password ${MONGO_PASSWORD} --authenticationDatabase admin --eval ''db.adminCommand("ping").ok'' | grep -q 1',
         ]
       interval: 10s
       timeout: 5s
