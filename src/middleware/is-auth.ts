@@ -1,12 +1,12 @@
 import jwt from "jsonwebtoken";
 import type { Request, Response, NextFunction } from "express";
-import type { HttpError } from "../utils/interfaces.js";
+import type { HttpError, UserRole } from "../utils/interfaces.js";
 import { JWT_SECRET } from "../utils/config.js";
 import TokenBlacklist from "../models/token-blacklist.js";
 
 interface DecodedToken {
   userId: string;
-  role: "user" | "editor" | "admin";
+  role: UserRole;
 }
 
 export const isAuth = async (
