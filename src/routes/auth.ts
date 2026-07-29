@@ -4,8 +4,14 @@ import {
   userLogin,
   userUpdate,
   userDelete,
+  tokenRefreshRotation,
+  userLogout,
+  forgotPassword,
+  resetPassword,
 } from "../controllers/auth.js";
 import { isAuth } from "../middleware/is-auth.js";
+import { body } from "express-validator";
+import { validateRequest } from "../middleware/validate-request.js";
 
 const router = express.Router();
 
@@ -31,7 +37,27 @@ const router = express.Router();
  *       500:
  *         description: Some server error
  */
-router.post("/signup", userAuth);
+router.post(
+  "/signup",
+  [
+    body("email")
+      .isEmail()
+      .withMessage("Invalid email address schema context.")
+      .normalizeEmail(),
+    body("password")
+      .trim()
+      .isLength({ min: 8 })
+      .withMessage(
+        "Password requires an 8-character floor complexity constraint.",
+      ),
+    body("name")
+      .trim()
+      .notEmpty()
+      .withMessage("User structural profile identity payload name required."),
+  ],
+  validateRequest,
+  userAuth,
+);
 
 /**
  * @swagger
@@ -71,8 +97,46 @@ router.post("/signup", userAuth);
  *     400:
  *       description: Invalid credentials
  */
-router.post("/login", userLogin);
+router.post(
+  "/login",
+  [
+    body("email")
+      .isEmail()
+      .normalizeEmail()
+      .withMessage("Missing required email field."),
+    body("password")
+      .trim()
+      .notEmpty()
+      .withMessage("Missing required password field."),
+  ],
+  validateRequest,
+  userLogin,
+);
 
+router.post("/refresh", tokenRefreshRotation);
+router.post("/logout", isAuth, userLogout);
+
+router.post(
+  "/forgot-password",
+  [body("email").isEmail().normalizeEmail()],
+  validateRequest,
+  forgotPassword,
+);
+
+router.post(
+  "/reset-password",
+  [
+    body("token")
+      .notEmpty()
+      .withMessage("Verification hash string key token missing."),
+    body("newPassword")
+      .trim()
+      .isLength({ min: 8 })
+      .withMessage("Complexity violation metrics triggered."),
+  ],
+  validateRequest,
+  resetPassword,
+);
 /**
  * @swagger
  * /auth/update:
