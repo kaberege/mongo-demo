@@ -1,10 +1,11 @@
 import type { NextFunction, Request, Response } from "express";
-import { Types } from "mongoose";
 import User from "../models/user.js";
 import Post from "../models/post.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import type { HttpError } from "../utils/interfaces.js";
+import type { DecodedToken, HttpError } from "../utils/interfaces.js";
+import { JWT_SECRET, JWT_REFRESH_SECRET, NODE_ENV } from "../utils/config.js";
+import type { UserRole } from "../utils/interfaces.js";
 
 interface RequestBody {
   name: string;
@@ -15,36 +16,42 @@ interface RequestBody {
 interface UserData {
   name?: string;
   email?: string;
-  id?: Types.ObjectId;
+  role?: UserRole;
+  id?: string;
 }
 
-export const userAuth = async (
+export const userRegister = async (
   req: Request,
   res: Response,
   next: NextFunction,
 ) => {
-  // If req.body is undefined, it defaults to {}, avoiding the destructure crash
   const { name, email, password } = (req.body || {}) as RequestBody;
 
-  if (!name || !email || !password) {
-    const error = new Error("Missing required fields") as HttpError;
-    error.statusCode = 400;
-    return next(error);
-  }
-
   try {
-    const hashedPW: string = await bcrypt.hash(password, 12);
+    const collides = await User.findOne({ email });
+
+    if (collides) {
+      const error = new Error(
+        "Unique context collision: Email already exists.",
+      ) as HttpError;
+      error.statusCode = 422;
+      throw error;
+    }
+
+    const secureHash = await bcrypt.hash(password, 12);
     const newUser: RequestBody = {
       name: name,
       email: email,
-      password: hashedPW,
+      password: secureHash,
+      // role: "user"
     };
 
     const user = await User.create(newUser);
     const userData: UserData = {};
     userData.name = user.name;
     userData.email = user.email;
-    userData.id = user._id;
+    userData.role = user.role;
+    userData.id = user._id.toString();
 
     res
       .status(201)
@@ -61,12 +68,6 @@ export const userLogin = async (
 ) => {
   // If req.body is undefined, it defaults to {}, avoiding the destructure crash
   const { email, password } = (req.body || {}) as RequestBody;
-
-  if (!email || !password) {
-    const error = new Error("Missing required fields") as HttpError;
-    error.statusCode = 400;
-    return next(error);
-  }
 
   try {
     const user = await User.findOne({ email: email });
@@ -85,23 +86,94 @@ export const userLogin = async (
       throw error;
     }
 
-    const token: string = jwt.sign(
-      { email: user.email, userId: user._id.toString() },
-      process.env.JWT_SECRET || "secrettoken",
-      { expiresIn: "1h" },
+    const accessToken = jwt.sign(
+      { userId: user._id.toString(), role: user.role },
+      JWT_SECRET || "secretetoken",
+      { expiresIn: "15m" },
     );
+    const refreshToken = jwt.sign(
+      { userId: user._id.toString() },
+      JWT_REFRESH_SECRET || "refreshtoken",
+      { expiresIn: "7d" },
+    );
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
 
     const userData: UserData = {};
     userData.name = user.name;
     userData.email = user.email;
-    userData.id = user._id;
+    userData.role = user.role;
+    userData.id = user._id.toString();
 
-    res.status(200).json({ token: token, user: userData });
+    res.status(200).json({ token: accessToken, user: userData });
   } catch (error) {
     next(error);
   }
 };
 
+export const tokenRefreshRotation = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  const cookies = req.headers.cookie;
+  const cookieMap = Object.fromEntries(
+    cookies?.split("; ").map((c) => c.split("=")) || [],
+  );
+  const refreshToken = cookieMap["refreshToken"];
+
+  if (!refreshToken) {
+    const error = new Error(
+      "Session trace lost. Login sequence forced.",
+    ) as HttpError;
+    error.statusCode = 401;
+    return next(error);
+  }
+
+  const secretRefreshTokenkey = JWT_REFRESH_SECRET || "";
+
+  if (!secretRefreshTokenkey) {
+    throw new Error("Refresh Token Secret configuration missing.");
+  }
+
+  try {
+    const decoded = jwt.verify(
+      refreshToken,
+      secretRefreshTokenkey,
+    ) as DecodedToken;
+
+    const user = await User.findById(decoded.userId);
+
+    if (!user) {
+      const error = new Error(
+        "Target core identity mapping resolved out of system context bounds.",
+      ) as HttpError;
+      error.statusCode = 401;
+      throw error;
+    }
+
+    const newAccessToken = jwt.sign(
+      { userId: user._id.toString(), role: user.role },
+      JWT_SECRET || "secretetoken",
+      { expiresIn: "15m" },
+    );
+
+    res.status(200).json({ token: newAccessToken });
+  } catch (err) {
+    const error = new Error(
+      "Session signature verification failed.",
+    ) as HttpError;
+    error.statusCode = 401;
+    next(error);
+  }
+};
+
+//============================================
 export const userUpdate = async (
   req: Request,
   res: Response,

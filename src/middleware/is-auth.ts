@@ -1,13 +1,8 @@
 import jwt from "jsonwebtoken";
 import type { Request, Response, NextFunction } from "express";
-import type { HttpError, UserRole } from "../utils/interfaces.js";
+import type { HttpError, DecodedToken } from "../utils/interfaces.js";
 import { JWT_SECRET } from "../utils/config.js";
 import TokenBlacklist from "../models/token-blacklist.js";
-
-interface DecodedToken {
-  userId: string;
-  role: UserRole;
-}
 
 export const isAuth = async (
   req: Request,
@@ -39,10 +34,13 @@ export const isAuth = async (
       return next(error);
     }
 
-    const decodedToken = jwt.verify(
-      token,
-      JWT_SECRET || "secrettoken",
-    ) as DecodedToken;
+    const secretKey = JWT_SECRET || "";
+
+    if (!secretKey) {
+      throw new Error("JWT Secret configuration missing.");
+    }
+
+    const decodedToken = jwt.verify(token, secretKey) as DecodedToken;
 
     if (!decodedToken) {
       const error = new Error(
