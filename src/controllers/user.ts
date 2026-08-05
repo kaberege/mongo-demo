@@ -1,11 +1,13 @@
 import type { NextFunction, Request, Response } from "express";
 import User from "../models/user.js";
 import Post from "../models/post.js";
+import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import type { DecodedToken, HttpError } from "../utils/interfaces.js";
 import { JWT_SECRET, JWT_REFRESH_SECRET, NODE_ENV } from "../utils/config.js";
 import type { UserRole } from "../utils/interfaces.js";
+import TokenBlacklist from "../models/token-blacklist.js";
 
 interface RequestBody {
   name: string;
@@ -73,7 +75,9 @@ export const userLogin = async (
     const user = await User.findOne({ email: email });
 
     if (!user) {
-      const error = new Error("User with that email not found!") as HttpError;
+      const error = new Error(
+        "Invalid authentication parameters mapped.",
+      ) as HttpError;
       error.statusCode = 401;
       throw error;
     }
@@ -138,16 +142,28 @@ export const tokenRefreshRotation = async (
   const secretRefreshTokenkey = JWT_REFRESH_SECRET || "";
 
   if (!secretRefreshTokenkey) {
-    throw new Error("Refresh Token Secret configuration missing.");
+    const error = new Error(
+      "Refresh Token Secret configuration missing.",
+    ) as HttpError;
+    error.statusCode = 401;
+    return next(error);
   }
 
   try {
-    const decoded = jwt.verify(
+    const decodedToken = jwt.verify(
       refreshToken,
       secretRefreshTokenkey,
     ) as DecodedToken;
 
-    const user = await User.findById(decoded.userId);
+    if (!decodedToken) {
+      const error = new Error(
+        "Cryptographic verification failed.",
+      ) as HttpError;
+      error.statusCode = 401;
+      throw error;
+    }
+
+    const user = await User.findById(decodedToken.userId);
 
     if (!user) {
       const error = new Error(
@@ -168,8 +184,97 @@ export const tokenRefreshRotation = async (
     const error = new Error(
       "Session signature verification failed.",
     ) as HttpError;
-    error.statusCode = 401;
+    error.statusCode ? error.statusCode : 401;
     next(error);
+  }
+};
+
+export const userLogout = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  const token = req.get("Authorization")?.split(" ")[1];
+  try {
+    await TokenBlacklist.create({ token });
+    res.clearCookie("refreshToken");
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const forgotPassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  const { email } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+
+    // Silent return if user does NOT exist
+    if (!user) {
+      return res.status(200).json({
+        message:
+          "If an account with that email exists, a password reset link has been sent.",
+      });
+    }
+
+    // Generate token and save if user DOES exist
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    user.passwordResetToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
+    user.passwordResetExpiry = new Date(Date.now() + 3600000); // 1 hour
+    await user.save();
+
+    // Send email asynchronously
+    //await sendPasswordResetEmail(user.email, resetToken);
+
+    return res.status(200).json({
+      message:
+        "If an account with that email exists, a password reset link has been sent.",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const resetPassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  const { token, newPassword } = req.body;
+  const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+  try {
+    const user = await User.findOne({
+      passwordResetToken: hashedToken,
+      passwordResetExpiry: { $gt: new Date() },
+    });
+
+    if (!user) {
+      const error = new Error(
+        "Verification string expired or context is invalid.",
+      ) as HttpError;
+      error.statusCode = 400;
+      throw error;
+    }
+
+    user.password = await bcrypt.hash(newPassword, 12);
+    user.passwordResetToken = null;
+    user.passwordResetExpiry = null;
+    await user.save();
+
+    res.status(200).json({
+      message: "Security parameter reconfiguration verified successfully.",
+    });
+  } catch (err) {
+    next(err);
   }
 };
 
