@@ -1,6 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import User from "../models/user.js";
-import Post from "../models/post.js";
+import { User } from "../models/user.js";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -278,61 +277,85 @@ export const resetPassword = async (
   }
 };
 
-//============================================
-export const userUpdate = async (
+export const getProfile = async (
   req: Request,
   res: Response,
   next: NextFunction,
 ) => {
-  const { name, email, password } = req.body as RequestBody;
-
-  if (!req.userId) {
-    const error = new Error("Not authenticated") as HttpError;
-    error.statusCode = 401;
-    return next(error);
-  }
-
   try {
-    const user = await User.findById(req.userId);
-    if (!user) {
-      const error = new Error("User not found.") as HttpError;
+    const profile = await User.findById(req.userId).populate("posts");
+    if (!profile) {
+      const error = new Error("Identity lookup failed.") as HttpError;
       error.statusCode = 404;
       throw error;
     }
-    user.email = email || user.email;
-    user.name = name || user.name;
-    if (password) {
-      const hashedPW = await bcrypt.hash(password, 12);
-      user.password = hashedPW;
-    }
-    const updatedUser = await user.save();
-    const userData: Omit<UserData, "id"> = {};
-    userData.name = updatedUser.name;
-    userData.email = updatedUser.email;
-    res
-      .status(200)
-      .json({ message: "User updated successfully.", user: userData });
-  } catch (error) {
-    next(error);
+    res.status(200).json(profile);
+  } catch (err) {
+    next(err);
   }
 };
 
-export const userDelete = async (
+export const updateProfile = async (
   req: Request,
   res: Response,
   next: NextFunction,
 ) => {
-  if (!req.userId) {
-    const error = new Error("Not authenticated") as HttpError;
-    error.statusCode = 401;
-    return next(error);
-  }
-
+  const { name, status } = req.body;
   try {
+    const user = await User.findById(req.userId);
+    if (!user) {
+      const error = new Error(
+        "Profile modification target missing.",
+      ) as HttpError;
+      error.statusCode = 404;
+      throw error;
+    }
+    if (name) user.name = name;
+    if (status) user.status = status;
+    const currentProfile = await user.save();
+    res
+      .status(200)
+      .json({ message: "Profile alterations preserved.", currentProfile });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const deleteProfile = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    // Triggers cascading lifecycle hooks to drop related assets
     await User.findByIdAndDelete(req.userId);
-    await Post.deleteMany({ creator: req.userId });
+    res.clearCookie("refreshToken");
     res.status(204).send();
-  } catch (error) {
-    next(error);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const adminModifyRole = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  const { role } = req.body;
+  try {
+    const targetAccount = await User.findById(req.params.userId);
+    if (!targetAccount) {
+      const error = new Error("Target subject user mismatch.") as HttpError;
+      error.statusCode = 404;
+      throw error;
+    }
+    targetAccount.role = role;
+    await targetAccount.save();
+    res.status(200).json({
+      message: "Administrative privilege modification complete.",
+      scope: targetAccount.role,
+    });
+  } catch (err) {
+    next(err);
   }
 };

@@ -2,12 +2,13 @@ import express from "express";
 import {
   userRegister,
   userLogin,
-  userUpdate,
-  userDelete,
   tokenRefreshRotation,
   userLogout,
   forgotPassword,
   resetPassword,
+  updateProfile,
+  deleteProfile,
+  adminModifyRole,
 } from "../controllers/user.js";
 import { isAuth } from "../middleware/is-auth.js";
 import { body } from "express-validator";
@@ -173,7 +174,7 @@ router.post(
  *       404:
  *         description: User not found
  */
-router.put("/update", isAuth, userUpdate);
+router.put("/update", isAuth, updateProfile);
 
 /**
  * @swagger
@@ -189,7 +190,7 @@ router.put("/update", isAuth, userUpdate);
  *       401:
  *         description: Not authenticated
  */
-router.delete("/delete", isAuth, userDelete);
+router.delete("/delete", isAuth, deleteProfile);
 
 //==============================
 
@@ -198,20 +199,28 @@ router.patch(
   "/me",
   isAuth,
   [
-    body("email").optional().isEmail().normalizeEmail(),
     body("name").optional().trim().notEmpty(),
+    body("status").optional().trim().notEmpty(),
   ],
   validateRequest,
-  userController.updateProfile,
+  updateProfile,
 );
-router.delete("/me", isAuth, userController.deleteProfile);
+router.delete("/me", isAuth, deleteProfile);
 
 // Executive Administrative Endpoint Trigger Overrides
 router.patch(
   "/admin/role/:userId",
   isAuth,
   checkRole(["admin"]),
-  userController.adminModifyRole,
+  [
+    body("role")
+      .trim()
+      .notEmpty()
+      .isIn(["user", "editor", "admin"])
+      .withMessage("Invalid role specified"),
+  ],
+  validateRequest,
+  adminModifyRole,
 );
 
 export default router;

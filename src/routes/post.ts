@@ -5,7 +5,7 @@ import {
   getPost,
   updatePost,
   deletePost,
-} from "../controllers/feed.js";
+} from "../controllers/post.js";
 import { isAuth } from "../middleware/is-auth.js";
 import { checkRole } from "../middleware/check-role.js";
 import { upload } from "../utils/file-upload.js";

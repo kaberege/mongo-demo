@@ -1,9 +1,20 @@
-import mongoose from "mongoose";
-import type { HttpError } from "../utils/interfaces.js";
+import mongoose, { Schema, Document, Model } from "mongoose";
+import type { HttpError, UserRole } from "../utils/interfaces.js";
 
-const Schema = mongoose.Schema;
-
-const userSchema = new Schema(
+export interface IUser extends Document {
+  _id: mongoose.Types.ObjectId;
+  email: string;
+  password: string;
+  name: string;
+  status: string;
+  role: UserRole;
+  isVerified: boolean;
+  passwordResetToken?: string | null;
+  passwordResetExpiry?: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+const userSchema = new Schema<IUser>(
   {
     email: {
       type: String,
@@ -30,8 +41,26 @@ const userSchema = new Schema(
   },
   {
     timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
+    toJSON: {
+      virtuals: true,
+      transform: (_doc, ret: Record<string, any>) => {
+        delete ret.password;
+        delete ret.passwordResetToken;
+        delete ret.passwordResetExpiry;
+        delete ret.__v;
+        return ret;
+      },
+    },
+    toObject: {
+      virtuals: true,
+      transform: (_doc, ret: Record<string, any>) => {
+        delete ret.password;
+        delete ret.passwordResetToken;
+        delete ret.passwordResetExpiry;
+        delete ret.__v;
+        return ret;
+      },
+    },
   },
 );
 
@@ -69,4 +98,4 @@ userSchema.pre("findOneAndDelete", async function (next) {
   }
 });
 
-export default mongoose.model("User", userSchema);
+export const User: Model<IUser> = mongoose.model<IUser>("User", userSchema);

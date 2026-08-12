@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { Types } from "mongoose";
-import User from "../models/user.js";
+import { User } from "../models/user.js";
 import Post from "../models/post.js";
 import type { HttpError } from "../utils/interfaces.js";
 
