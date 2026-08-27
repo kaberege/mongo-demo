@@ -7,6 +7,7 @@ import type { DecodedToken, HttpError } from "../utils/interfaces.js";
 import { JWT_SECRET, JWT_REFRESH_SECRET, NODE_ENV } from "../utils/config.js";
 import type { UserRole } from "../utils/interfaces.js";
 import TokenBlacklist from "../models/token-blacklist.js";
+import { sendPasswordResetEmail } from "../utils/mailer.js";
 
 interface RequestBody {
   name: string;
@@ -230,8 +231,8 @@ export const forgotPassword = async (
     user.passwordResetExpiry = new Date(Date.now() + 3600000); // 1 hour
     await user.save();
 
-    // Send email asynchronously
-    //await sendPasswordResetEmail(user.email, resetToken);
+    // Send email asynchronously with the UNHASHED raw token
+    await sendPasswordResetEmail(user.email, resetToken);
 
     return res.status(200).json({
       message:
