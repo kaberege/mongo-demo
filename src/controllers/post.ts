@@ -1,7 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
 import { Types } from "mongoose";
 import { User } from "../models/user.js";
-import Post from "../models/post.js";
+import { Post } from "../models/post.js";
+import { clearImage } from "../utils/file-upload.js";
 import type { HttpError } from "../utils/interfaces.js";
 
 interface RequestBody {
@@ -16,9 +17,37 @@ interface PostProps {
   creator: string;
 }
 
-export const feedResponse = (req: Request, res: Response) => {
-  console.log("I got data with accurate responses.");
-  res.json({ id: 1, name: "kgn", age: 20 });
+export const getAllPosts = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 10;
+  const searchString = req.query.search as string;
+
+  // Multi-variant Search/Filtering Layer Design Matrix
+  const filteringQuery = searchString
+    ? { $text: { $search: searchString } }
+    : {};
+
+  try {
+    const totalItems = await Post.find(filteringQuery).countDocuments();
+    const posts = await Post.find(filteringQuery)
+      .populate("creator", "name email role")
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    res.status(200).json({
+      posts,
+      totalItems,
+      page,
+      totalPages: Math.ceil(totalItems / limit),
+    });
+  } catch (err) {
+    next(err);
+  }
 };
 
 export const feedPost = async (
