@@ -3,18 +3,12 @@ import { Types } from "mongoose";
 import { User } from "../models/user.js";
 import { Post } from "../models/post.js";
 import { clearImage } from "../utils/file-upload.js";
+import { canModifyPost } from "../utils/permissions.js";
 import type { HttpError } from "../utils/interfaces.js";
 
 interface RequestBody {
   title: string;
   content: string;
-}
-
-interface PostProps {
-  title: string;
-  imageURL: string | null;
-  content: string;
-  creator: string;
 }
 
 export const getAllPosts = async (
@@ -56,44 +50,34 @@ export const feedPost = async (
   next: NextFunction,
 ) => {
   const { title, content } = (req.body || {}) as RequestBody;
-  const image: string | null = req.file ? req.file.path : null;
+  const imageURL = req.file ? req.file.path.replace(/\\/g, "/") : null;
 
-  if (!req.userId) {
-    const error = new Error("Not authenticated") as HttpError;
-    error.statusCode = 401;
+  if (!imageURL) {
+    const error = new Error(
+      "Multi-part processing parsing error: File field mapping unresolved.",
+    ) as HttpError;
+    error.statusCode = 422;
     return next(error);
   }
 
-  if (!title || !content) {
-    const error = new Error("Title and content are required.") as HttpError;
-    error.statusCode = 400;
-    return next(error);
-  }
-
-  const newPost: PostProps = {
+  const newPost = {
     title: title,
-    imageURL: image,
+    imageURL: imageURL,
     content: content,
     creator: req.userId,
   };
 
   try {
     const post = await Post.create(newPost);
-    const user = await User.findById(post.creator);
-    if (!user) {
-      const error = new Error("User not found.") as HttpError;
-      error.statusCode = 404;
-      throw error;
-    }
-    user.posts.push(post._id);
-    const results = await user.save();
+
+    await post.populate("creator");
 
     res.status(201).json({
       message: "Data saved to the server successfully!",
-      data: post,
-      creatorName: results.name,
+      post,
     });
   } catch (error) {
+    clearImage(imageURL);
     next(error);
   }
 };
@@ -104,11 +88,12 @@ export const getPost = async (
   next: NextFunction,
 ) => {
   const postId = req.params.postId;
+
   try {
-    const post = await Post.findById(postId);
+    const post = await Post.findById(postId).populate("creator");
 
     if (!post) {
-      const error = new Error("No post found!") as HttpError;
+      const error = new Error("Target record not found.") as HttpError;
       error.statusCode = 404;
       throw error;
     }
@@ -126,38 +111,50 @@ export const updatePost = async (
 ) => {
   const postId: string | undefined = req.params.postId;
   const { title, content } = (req.body || {}) as RequestBody;
-  const image = req.file ? req.file.path : null;
-
-  if (!req.userId) {
-    const error = new Error("Not authenticated") as HttpError;
-    error.statusCode = 401;
-    return next(error);
-  }
+  let newImage = req.file ? req.file.path.replace(/\\/g, "/") : null;
 
   try {
-    const post = await Post.findById(postId);
-
+    const post = await Post.findById(req.params.postId);
     if (!post) {
-      const error = new Error("No post found!") as HttpError;
+      if (newImage) clearImage(newImage);
+      const error = new Error(
+        "Target document target mapping unresolved.",
+      ) as HttpError;
       error.statusCode = 404;
       throw error;
     }
 
-    if (post.creator.toString() !== req.userId) {
+    if (
+      !canModifyPost(req.userId!, req.userRole!, post.creator.toString(), [
+        "admin",
+        "editor",
+      ])
+    ) {
+      if (newImage) clearImage(newImage);
+
       const error = new Error(
-        "You can only update your own posts",
+        "Not authorized to modify this resource.",
       ) as HttpError;
       error.statusCode = 403;
       throw error;
     }
 
-    post.title = title || post.title;
-    post.content = content || post.content;
-    post.imageURL = image || post.imageURL;
-    const result = await post.save();
+    if (newImage) {
+      clearImage(post.imageURL);
+      post.imageURL = newImage;
+    }
+    if (title) post.title = title;
+    if (content) post.content = content;
 
-    res.status(200).json({ message: "Post updated.", data: result });
+    const savedResult = await post.save();
+    res
+      .status(200)
+      .json({ message: "Content revision verified.", data: savedResult });
   } catch (error) {
+    if (newImage) {
+      clearImage(newImage);
+    }
+
     next(error);
   }
 };
@@ -167,45 +164,32 @@ export const deletePost = async (
   res: Response,
   next: NextFunction,
 ) => {
-  const postId: string | undefined = req.params.postId;
-
-  if (!req.userId) {
-    const error = new Error("Not authenticated") as HttpError;
-    error.statusCode = 401;
-    return next(error);
-  }
-
   try {
-    const post = await Post.findById(postId);
-
+    const post = await Post.findById(req.params.postId);
     if (!post) {
-      const error = new Error("No post found!") as HttpError;
+      const error = new Error(
+        "Purge cancellation: Target entity does not exist.",
+      ) as HttpError;
       error.statusCode = 404;
       throw error;
     }
 
-    if (post.creator.toString() !== req.userId) {
+    if (
+      !canModifyPost(req.userId!, req.userRole!, post.creator.toString(), [
+        "admin",
+      ])
+    ) {
       const error = new Error(
-        "You can only delete your own posts",
+        "Modification scope permissions lock matched access mismatch.",
       ) as HttpError;
       error.statusCode = 403;
       throw error;
     }
 
-    await Post.findByIdAndDelete(postId);
-    const user = await User.findById(req.userId);
-
-    if (!user) {
-      const error = new Error("User not found.") as HttpError;
-      error.statusCode = 404;
-      throw error;
-    }
-
-    (user.posts as Types.DocumentArray<Types.ObjectId>).pull(postId);
-    await user.save();
-
+    clearImage(post.imageURL);
+    await Post.findByIdAndDelete(req.params.postId);
     res.status(204).send();
-  } catch (error) {
-    next(error);
+  } catch (err) {
+    next(err);
   }
 };

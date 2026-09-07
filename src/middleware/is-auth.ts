@@ -50,6 +50,12 @@ export const isAuth = async (
       return next(error);
     }
 
+    if (!decodedToken.userId || !decodedToken.role) {
+      const error = new Error("Malformed token payload.") as HttpError;
+      error.statusCode = 401;
+      return next(error);
+    }
+
     req.userId = decodedToken.userId as string;
     req.userRole = decodedToken.role;
     next();
