@@ -1,6 +1,4 @@
 import type { NextFunction, Request, Response } from "express";
-import { Types } from "mongoose";
-import { User } from "../models/user.js";
 import { Post } from "../models/post.js";
 import { clearImage } from "../utils/file-upload.js";
 import { canModifyPost } from "../utils/permissions.js";
