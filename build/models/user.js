@@ -1,5 +1,4 @@
-import mongoose from "mongoose";
-const Schema = mongoose.Schema;
+import mongoose, { Schema, Document, Model } from "mongoose";
 const userSchema = new Schema({
     email: {
         type: String,
@@ -25,8 +24,26 @@ const userSchema = new Schema({
     passwordResetExpiry: { type: Date },
 }, {
     timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
+    toJSON: {
+        virtuals: true,
+        transform: (_doc, ret) => {
+            delete ret.password;
+            delete ret.passwordResetToken;
+            delete ret.passwordResetExpiry;
+            delete ret.__v;
+            return ret;
+        },
+    },
+    toObject: {
+        virtuals: true,
+        transform: (_doc, ret) => {
+            delete ret.password;
+            delete ret.passwordResetToken;
+            delete ret.passwordResetExpiry;
+            delete ret.__v;
+            return ret;
+        },
+    },
 });
 // Virtual binding to prevent arrays tracking memory bounds
 userSchema.virtual("posts", {
@@ -56,5 +73,5 @@ userSchema.pre("findOneAndDelete", async function (next) {
         next(error);
     }
 });
-export default mongoose.model("User", userSchema);
+export const User = mongoose.model("User", userSchema);
 //# sourceMappingURL=user.js.map

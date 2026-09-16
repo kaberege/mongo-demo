@@ -1,3 +1,3 @@
-export declare const MONGO_USER: string | undefined, MONGO_PASSWORD: string | undefined, MONGO_HOST: string | undefined, MONGO_PORT: string | undefined, MONGO_DB: string | undefined, MONGO_AUTH_SOURCE: string | undefined, PORT: string;
+export declare const MONGO_USER: string | undefined, MONGO_PASSWORD: string | undefined, MONGO_HOST: string | undefined, MONGO_PORT: string | undefined, MONGO_DB: string | undefined, MONGO_AUTH_SOURCE: string | undefined, JWT_SECRET: string | undefined, JWT_REFRESH_SECRET: string | undefined, NODE_ENV: string | undefined, PORT: string, EMAIL_HOST: string | undefined, EMAIL_PORT: string | undefined, EMAIL_USER: string | undefined, EMAIL_PASS: string | undefined, CLIENT_URL: string | undefined;
 export declare const MONGO_URI: string;
 //# sourceMappingURL=config.d.ts.map
