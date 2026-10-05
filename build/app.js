@@ -4,6 +4,7 @@ import bodyParser from "body-parser";
 import path from "path";
 import helmet from "helmet";
 import cors from "cors";
+import { morganMiddleware } from "./middleware/morganMiddleware.js";
 import { MONGO_URI, PORT } from "./utils/config.js";
 import userRoutes from "./routes/user.js";
 import feedRoutes from "./routes/post.js";
@@ -12,6 +13,7 @@ app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(cors({ origin: "*", methods: ["GET", "POST", "PUT", "PATCH", "DELETE"] }));
 app.use(bodyParser.json());
 app.use("/public", express.static(path.resolve("public")));
+app.use(morganMiddleware);
 // Route Handling Registrations
 app.use("/users", userRoutes);
 app.use("/post", feedRoutes);

@@ -5,6 +5,7 @@ import bodyParser from "body-parser";
 import path from "path";
 import helmet from "helmet";
 import cors from "cors";
+import { morganMiddleware } from "./middleware/morganMiddleware.js";
 
 import { MONGO_URI, PORT } from "./utils/config.js";
 import userRoutes from "./routes/user.js";
@@ -18,6 +19,7 @@ app.use(
 );
 app.use(bodyParser.json());
 app.use("/public", express.static(path.resolve("public")));
+app.use(morganMiddleware);
 
 // Route Handling Registrations
 app.use("/users", userRoutes);
