@@ -8,6 +8,7 @@ import { JWT_SECRET, JWT_REFRESH_SECRET, NODE_ENV } from "../utils/config.js";
 import type { UserRole } from "../utils/interfaces.js";
 import TokenBlacklist from "../models/token-blacklist.js";
 import { sendPasswordResetEmail } from "../utils/mailer.js";
+import { logger } from "../utils/logger.js";
 
 interface RequestBody {
   name: string;
@@ -33,6 +34,7 @@ export const userRegister = async (
     const collides = await User.findOne({ email });
 
     if (collides) {
+      logger.warn("Registration failed: Duplicate email", { email });
       const error = new Error(
         "Unique context collision: Email already exists.",
       ) as HttpError;
@@ -55,10 +57,15 @@ export const userRegister = async (
     userData.role = user.role;
     userData.id = user._id.toString();
 
+    logger.info("User registered successfully", {
+      userId: user._id,
+      email: user.email,
+    });
     res
       .status(201)
       .json({ message: "User created successfully.", user: userData });
   } catch (error) {
+    logger.error("User registration error", { error });
     next(error);
   }
 };
@@ -75,6 +82,7 @@ export const userLogin = async (
     const user = await User.findOne({ email: email });
 
     if (!user) {
+      logger.warn("Login failed: User not found", { email });
       const error = new Error(
         "Invalid authentication parameters mapped.",
       ) as HttpError;
@@ -85,6 +93,7 @@ export const userLogin = async (
     const isEqual: boolean = await bcrypt.compare(password, user.password);
 
     if (!isEqual) {
+      logger.warn("Login failed: Incorrect password", { email });
       const error = new Error("Password did not match!") as HttpError;
       error.statusCode = 401;
       throw error;
@@ -114,8 +123,11 @@ export const userLogin = async (
     userData.role = user.role;
     userData.id = user._id.toString();
 
+    logger.info("User logged in successfully", { userId: user._id });
+
     res.status(200).json({ token: accessToken, user: userData });
   } catch (error) {
+    logger.error("User login error", { error });
     next(error);
   }
 };
@@ -132,6 +144,7 @@ export const tokenRefreshRotation = async (
   const refreshToken = cookieMap["refreshToken"];
 
   if (!refreshToken) {
+    logger.warn("Token refresh failed: Missing refresh cookie");
     const error = new Error(
       "Session trace lost. Login sequence forced.",
     ) as HttpError;
@@ -166,6 +179,9 @@ export const tokenRefreshRotation = async (
     const user = await User.findById(decodedToken.userId);
 
     if (!user) {
+      logger.warn("Token refresh failed: User missing", {
+        userId: decodedToken.userId,
+      });
       const error = new Error(
         "Target core identity mapping resolved out of system context bounds.",
       ) as HttpError;
@@ -179,8 +195,10 @@ export const tokenRefreshRotation = async (
       { expiresIn: "15m" },
     );
 
+    logger.info("Token refreshed successfully", { userId: user._id });
     res.status(200).json({ token: newAccessToken });
   } catch (err) {
+    logger.error("Token refresh verification error", { error: err });
     const error = new Error(
       "Session signature verification failed.",
     ) as HttpError;
@@ -198,8 +216,10 @@ export const userLogout = async (
   try {
     await TokenBlacklist.create({ token });
     res.clearCookie("refreshToken");
+    logger.info("User logged out successfully", { userId: req.userId });
     res.status(204).send();
   } catch (error) {
+    logger.error("Logout error", { error });
     next(error);
   }
 };
@@ -216,6 +236,9 @@ export const forgotPassword = async (
 
     // Silent return if user does NOT exist
     if (!user) {
+      logger.info("Forgot password requested for non-existent email", {
+        email,
+      });
       return res.status(200).json({
         message:
           "If an account with that email exists, a password reset link has been sent.",
@@ -233,12 +256,14 @@ export const forgotPassword = async (
 
     // Send email asynchronously with the UNHASHED raw token
     await sendPasswordResetEmail(user.email, resetToken);
+    logger.info("Password reset dispatch successful", { userId: user._id });
 
     return res.status(200).json({
       message:
         "If an account with that email exists, a password reset link has been sent.",
     });
   } catch (error) {
+    logger.error("Forgot password flow error", { error });
     next(error);
   }
 };
@@ -258,6 +283,7 @@ export const resetPassword = async (
     });
 
     if (!user) {
+      logger.warn("Password reset failed: Invalid or expired token");
       const error = new Error(
         "Verification string expired or context is invalid.",
       ) as HttpError;
@@ -270,10 +296,12 @@ export const resetPassword = async (
     user.passwordResetExpiry = null;
     await user.save();
 
+    logger.info("Password reset successful", { userId: user._id });
     res.status(200).json({
       message: "Security parameter reconfiguration verified successfully.",
     });
   } catch (err) {
+    logger.error("Password reset execution error", { error: err });
     next(err);
   }
 };
@@ -286,12 +314,14 @@ export const getProfile = async (
   try {
     const profile = await User.findById(req.userId).populate("posts");
     if (!profile) {
+      logger.warn("Get profile failed: User not found", { userId: req.userId });
       const error = new Error("Identity lookup failed.") as HttpError;
       error.statusCode = 404;
       throw error;
     }
     res.status(200).json(profile);
   } catch (err) {
+    logger.error("Get profile error", { error: err });
     next(err);
   }
 };
@@ -314,10 +344,13 @@ export const updateProfile = async (
     if (name) user.name = name;
     if (status) user.status = status;
     const currentProfile = await user.save();
+
+    logger.info("User profile updated", { userId: req.userId });
     res
       .status(200)
       .json({ message: "Profile alterations preserved.", currentProfile });
   } catch (err) {
+    logger.error("Update profile error", { error: err });
     next(err);
   }
 };
@@ -331,8 +364,10 @@ export const deleteProfile = async (
     // Triggers cascading lifecycle hooks to drop related assets
     await User.findByIdAndDelete(req.userId);
     res.clearCookie("refreshToken");
+    logger.info("User profile deleted", { userId: req.userId });
     res.status(204).send();
   } catch (err) {
+    logger.error("Delete profile error", { error: err });
     next(err);
   }
 };
@@ -352,11 +387,18 @@ export const adminModifyRole = async (
     }
     targetAccount.role = role;
     await targetAccount.save();
+
+    logger.info("Admin updated user role", {
+      adminId: req.userId,
+      targetUserId: targetAccount._id,
+      newRole: role,
+    });
     res.status(200).json({
       message: "Administrative privilege modification complete.",
       scope: targetAccount.role,
     });
   } catch (err) {
+    logger.error("Admin modify role error", { error: err });
     next(err);
   }
 };

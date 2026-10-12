@@ -5,11 +5,13 @@ import jwt from "jsonwebtoken";
 import { JWT_SECRET, JWT_REFRESH_SECRET, NODE_ENV } from "../utils/config.js";
 import TokenBlacklist from "../models/token-blacklist.js";
 import { sendPasswordResetEmail } from "../utils/mailer.js";
+import { logger } from "../utils/logger.js";
 export const userRegister = async (req, res, next) => {
     const { name, email, password } = (req.body || {});
     try {
         const collides = await User.findOne({ email });
         if (collides) {
+            logger.warn("Registration failed: Duplicate email", { email });
             const error = new Error("Unique context collision: Email already exists.");
             error.statusCode = 422;
             throw error;
@@ -27,11 +29,16 @@ export const userRegister = async (req, res, next) => {
         userData.email = user.email;
         userData.role = user.role;
         userData.id = user._id.toString();
+        logger.info("User registered successfully", {
+            userId: user._id,
+            email: user.email,
+        });
         res
             .status(201)
             .json({ message: "User created successfully.", user: userData });
     }
     catch (error) {
+        logger.error("User registration error", { error });
         next(error);
     }
 };
@@ -41,12 +48,14 @@ export const userLogin = async (req, res, next) => {
     try {
         const user = await User.findOne({ email: email });
         if (!user) {
+            logger.warn("Login failed: User not found", { email });
             const error = new Error("Invalid authentication parameters mapped.");
             error.statusCode = 401;
             throw error;
         }
         const isEqual = await bcrypt.compare(password, user.password);
         if (!isEqual) {
+            logger.warn("Login failed: Incorrect password", { email });
             const error = new Error("Password did not match!");
             error.statusCode = 401;
             throw error;
@@ -64,9 +73,11 @@ export const userLogin = async (req, res, next) => {
         userData.email = user.email;
         userData.role = user.role;
         userData.id = user._id.toString();
+        logger.info("User logged in successfully", { userId: user._id });
         res.status(200).json({ token: accessToken, user: userData });
     }
     catch (error) {
+        logger.error("User login error", { error });
         next(error);
     }
 };
@@ -75,6 +86,7 @@ export const tokenRefreshRotation = async (req, res, next) => {
     const cookieMap = Object.fromEntries(cookies?.split("; ").map((c) => c.split("=")) || []);
     const refreshToken = cookieMap["refreshToken"];
     if (!refreshToken) {
+        logger.warn("Token refresh failed: Missing refresh cookie");
         const error = new Error("Session trace lost. Login sequence forced.");
         error.statusCode = 401;
         return next(error);
@@ -94,14 +106,19 @@ export const tokenRefreshRotation = async (req, res, next) => {
         }
         const user = await User.findById(decodedToken.userId);
         if (!user) {
+            logger.warn("Token refresh failed: User missing", {
+                userId: decodedToken.userId,
+            });
             const error = new Error("Target core identity mapping resolved out of system context bounds.");
             error.statusCode = 401;
             throw error;
         }
         const newAccessToken = jwt.sign({ userId: user._id.toString(), role: user.role }, JWT_SECRET || "secretetoken", { expiresIn: "15m" });
+        logger.info("Token refreshed successfully", { userId: user._id });
         res.status(200).json({ token: newAccessToken });
     }
     catch (err) {
+        logger.error("Token refresh verification error", { error: err });
         const error = new Error("Session signature verification failed.");
         error.statusCode ? error.statusCode : 401;
         next(error);
@@ -112,9 +129,11 @@ export const userLogout = async (req, res, next) => {
     try {
         await TokenBlacklist.create({ token });
         res.clearCookie("refreshToken");
+        logger.info("User logged out successfully", { userId: req.userId });
         res.status(204).send();
     }
     catch (error) {
+        logger.error("Logout error", { error });
         next(error);
     }
 };
@@ -124,6 +143,9 @@ export const forgotPassword = async (req, res, next) => {
         const user = await User.findOne({ email });
         // Silent return if user does NOT exist
         if (!user) {
+            logger.info("Forgot password requested for non-existent email", {
+                email,
+            });
             return res.status(200).json({
                 message: "If an account with that email exists, a password reset link has been sent.",
             });
@@ -138,11 +160,13 @@ export const forgotPassword = async (req, res, next) => {
         await user.save();
         // Send email asynchronously with the UNHASHED raw token
         await sendPasswordResetEmail(user.email, resetToken);
+        logger.info("Password reset dispatch successful", { userId: user._id });
         return res.status(200).json({
             message: "If an account with that email exists, a password reset link has been sent.",
         });
     }
     catch (error) {
+        logger.error("Forgot password flow error", { error });
         next(error);
     }
 };
@@ -155,6 +179,7 @@ export const resetPassword = async (req, res, next) => {
             passwordResetExpiry: { $gt: new Date() },
         });
         if (!user) {
+            logger.warn("Password reset failed: Invalid or expired token");
             const error = new Error("Verification string expired or context is invalid.");
             error.statusCode = 400;
             throw error;
@@ -163,11 +188,13 @@ export const resetPassword = async (req, res, next) => {
         user.passwordResetToken = null;
         user.passwordResetExpiry = null;
         await user.save();
+        logger.info("Password reset successful", { userId: user._id });
         res.status(200).json({
             message: "Security parameter reconfiguration verified successfully.",
         });
     }
     catch (err) {
+        logger.error("Password reset execution error", { error: err });
         next(err);
     }
 };
@@ -175,6 +202,7 @@ export const getProfile = async (req, res, next) => {
     try {
         const profile = await User.findById(req.userId).populate("posts");
         if (!profile) {
+            logger.warn("Get profile failed: User not found", { userId: req.userId });
             const error = new Error("Identity lookup failed.");
             error.statusCode = 404;
             throw error;
@@ -182,6 +210,7 @@ export const getProfile = async (req, res, next) => {
         res.status(200).json(profile);
     }
     catch (err) {
+        logger.error("Get profile error", { error: err });
         next(err);
     }
 };
@@ -199,11 +228,13 @@ export const updateProfile = async (req, res, next) => {
         if (status)
             user.status = status;
         const currentProfile = await user.save();
+        logger.info("User profile updated", { userId: req.userId });
         res
             .status(200)
             .json({ message: "Profile alterations preserved.", currentProfile });
     }
     catch (err) {
+        logger.error("Update profile error", { error: err });
         next(err);
     }
 };
@@ -212,9 +243,11 @@ export const deleteProfile = async (req, res, next) => {
         // Triggers cascading lifecycle hooks to drop related assets
         await User.findByIdAndDelete(req.userId);
         res.clearCookie("refreshToken");
+        logger.info("User profile deleted", { userId: req.userId });
         res.status(204).send();
     }
     catch (err) {
+        logger.error("Delete profile error", { error: err });
         next(err);
     }
 };
@@ -229,12 +262,18 @@ export const adminModifyRole = async (req, res, next) => {
         }
         targetAccount.role = role;
         await targetAccount.save();
+        logger.info("Admin updated user role", {
+            adminId: req.userId,
+            targetUserId: targetAccount._id,
+            newRole: role,
+        });
         res.status(200).json({
             message: "Administrative privilege modification complete.",
             scope: targetAccount.role,
         });
     }
     catch (err) {
+        logger.error("Admin modify role error", { error: err });
         next(err);
     }
 };

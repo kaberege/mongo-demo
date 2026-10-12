@@ -3,6 +3,7 @@ import { Post } from "../models/post.js";
 import { clearImage } from "../utils/file-upload.js";
 import { canModifyPost } from "../utils/permissions.js";
 import type { HttpError } from "../utils/interfaces.js";
+import { logger } from "../utils/logger.js";
 
 interface RequestBody {
   title: string;
@@ -31,6 +32,8 @@ export const getAllPosts = async (
       .skip((page - 1) * limit)
       .limit(limit);
 
+    logger.info("Posts fetched successfully", { page, limit, totalItems });
+
     res.status(200).json({
       posts,
       totalItems,
@@ -38,6 +41,7 @@ export const getAllPosts = async (
       totalPages: Math.ceil(totalItems / limit),
     });
   } catch (err) {
+    logger.error("Error fetching posts", { error: err });
     next(err);
   }
 };
@@ -51,6 +55,9 @@ export const feedPost = async (
   const imageURL = req.file ? req.file.path.replace(/\\/g, "/") : null;
 
   if (!imageURL) {
+    logger.warn("Post creation failed: Missing image file", {
+      userId: req.userId,
+    });
     const error = new Error(
       "Multi-part processing parsing error: File field mapping unresolved.",
     ) as HttpError;
@@ -70,12 +77,18 @@ export const feedPost = async (
 
     await post.populate("creator");
 
+    logger.info("New post created successfully", {
+      postId: post._id,
+      userId: req.userId,
+    });
+
     res.status(201).json({
       message: "Data saved to the server successfully!",
       post,
     });
   } catch (error) {
     clearImage(imageURL);
+    logger.error("Failed to create post", { error, userId: req.userId });
     next(error);
   }
 };
@@ -91,6 +104,7 @@ export const getPost = async (
     const post = await Post.findById(postId).populate("creator");
 
     if (!post) {
+      logger.warn("Post not found", { postId });
       const error = new Error("Target record not found.") as HttpError;
       error.statusCode = 404;
       throw error;
@@ -98,6 +112,7 @@ export const getPost = async (
 
     res.status(200).json(post);
   } catch (error) {
+    logger.error("Error fetching single post", { postId, error });
     next(error);
   }
 };
@@ -115,6 +130,7 @@ export const updatePost = async (
     const post = await Post.findById(req.params.postId);
     if (!post) {
       if (newImage) clearImage(newImage);
+      logger.warn("Update post failed: Post not found", { postId });
       const error = new Error(
         "Target document target mapping unresolved.",
       ) as HttpError;
@@ -130,6 +146,10 @@ export const updatePost = async (
     ) {
       if (newImage) clearImage(newImage);
 
+      logger.warn("Unauthorized post modification attempt", {
+        userId: req.userId,
+        postId,
+      });
       const error = new Error(
         "Not authorized to modify this resource.",
       ) as HttpError;
@@ -145,6 +165,12 @@ export const updatePost = async (
     if (content) post.content = content;
 
     const savedResult = await post.save();
+
+    logger.info("Post updated successfully", {
+      postId: savedResult._id,
+      userId: req.userId,
+    });
+
     res
       .status(200)
       .json({ message: "Content revision verified.", data: savedResult });
@@ -152,7 +178,7 @@ export const updatePost = async (
     if (newImage) {
       clearImage(newImage);
     }
-
+    logger.error("Error updating post", { postId, error });
     next(error);
   }
 };
@@ -165,6 +191,9 @@ export const deletePost = async (
   try {
     const post = await Post.findById(req.params.postId);
     if (!post) {
+      logger.warn("Delete post failed: Post not found", {
+        postId: req.params.postId,
+      });
       const error = new Error(
         "Purge cancellation: Target entity does not exist.",
       ) as HttpError;
@@ -177,6 +206,11 @@ export const deletePost = async (
         "admin",
       ])
     ) {
+      logger.warn("Unauthorized post deletion attempt", {
+        userId: req.userId,
+        postId: post._id,
+      });
+
       const error = new Error(
         "Modification scope permissions lock matched access mismatch.",
       ) as HttpError;
@@ -186,8 +220,17 @@ export const deletePost = async (
 
     clearImage(post.imageURL);
     await Post.findByIdAndDelete(req.params.postId);
+
+    logger.info("Post deleted successfully", {
+      postId: req.params.postId,
+      userId: req.userId,
+    });
     res.status(204).send();
   } catch (err) {
+    logger.error("Error deleting post", {
+      postId: req.params.postId,
+      error: err,
+    });
     next(err);
   }
 };
