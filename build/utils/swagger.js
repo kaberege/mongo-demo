@@ -22,7 +22,7 @@ const options = {
         },
         tags: [
             {
-                name: "Auth",
+                name: "Users",
                 description: "User registration, login, and account management",
             },
             {
@@ -63,6 +63,7 @@ const options = {
                         email: { type: "string", format: "email" },
                         name: { type: "string" },
                         status: { type: "string" },
+                        isVerified: { type: "boolean" },
                         posts: {
                             type: "array",
                             items: { $ref: "#/components/schemas/Post" },
@@ -84,6 +85,7 @@ const options = {
                             ],
                         },
                         createdAt: { type: "string", format: "date-time" },
+                        updatedAt: { type: "string", format: "date-time" },
                     },
                 },
             },

@@ -26,7 +26,7 @@ const options: swaggerJSDoc.Options = {
     },
     tags: [
       {
-        name: "Auth",
+        name: "Users",
         description: "User registration, login, and account management",
       },
       {
@@ -67,6 +67,7 @@ const options: swaggerJSDoc.Options = {
             email: { type: "string", format: "email" },
             name: { type: "string" },
             status: { type: "string" },
+            isVerified: { type: "boolean" },
             posts: {
               type: "array",
               items: { $ref: "#/components/schemas/Post" },
@@ -88,6 +89,7 @@ const options: swaggerJSDoc.Options = {
               ],
             },
             createdAt: { type: "string", format: "date-time" },
+            updatedAt: { type: "string", format: "date-time" },
           },
         },
       },

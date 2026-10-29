@@ -6,6 +6,7 @@ import {
   userLogout,
   forgotPassword,
   resetPassword,
+  getProfile,
   updateProfile,
   deleteProfile,
   adminModifyRole,
@@ -13,17 +14,16 @@ import {
 import { isAuth } from "../middleware/is-auth.js";
 import { body } from "express-validator";
 import { validateRequest } from "../middleware/validate-request.js";
-import * as userController from "../controllers/user.js";
 import { checkRole } from "../middleware/check-role.js";
 
 const router = express.Router();
 
 /**
  * @swagger
- * /auth/register:
+ * /user/register:
  *   post:
  *     summary: Register a new user
- *     tags: [Auth]
+ *     tags: [Users]
  *     requestBody:
  *       required: true
  *       content:
@@ -37,6 +37,8 @@ const router = express.Router();
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/UserResponse'
+ *       422:
+ *         description: Email already exists.
  *       500:
  *         description: Some server error
  */
@@ -64,10 +66,10 @@ router.post(
 
 /**
  * @swagger
- * /auth/login:
+ * /user/login:
  *   post:
  *     summary: Log in a user and receive a JWT
- *     tags: [Auth]
+ *     tags: [Users]
  *     requestBody:
  *       required: true
  *       content:
@@ -84,7 +86,7 @@ router.post(
  *                 format: password
  *     responses:
  *       200:
- *         description: Login successful
+ *         description: Login successful. Sets refreshToken cookie
  *         content:
  *           application/json:
  *             schema:
@@ -95,10 +97,8 @@ router.post(
  *                   description: JWT Token
  *                 user:
  *                   $ref: '#/components/schemas/UserResponse'
- *     404:
- *       description: User not found
- *     400:
- *       description: Invalid credentials
+ *     401:
+ *       description: Invalid authentication parameters
  */
 router.post(
   "/login",
@@ -116,9 +116,53 @@ router.post(
   userLogin,
 );
 
+/**
+ * @swagger
+ * /user/refresh:
+ *   post:
+ *     summary: Refresh JWT Access Token using HTTP-Only Refresh Cookie
+ *     tags: [Users]
+ *     responses:
+ *       200:
+ *         description: Access token refreshed.
+ *       401:
+ *         description: Invalid or missing refresh token.
+ */
 router.post("/refresh", tokenRefreshRotation);
+
+/**
+ * @swagger
+ * /user/logout:
+ *   post:
+ *     summary: Logout user and invalidate access token
+ *     tags: [Users]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       204:
+ *         description: Logout successful.
+ */
 router.post("/logout", isAuth, userLogout);
 
+/**
+ * @swagger
+ * /user/forgot-password:
+ *   post:
+ *     summary: Request password reset link
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email: { type: string, format: email, example: "john@example.com" }
+ *     responses:
+ *       200:
+ *         description: Reset email dispatched if account exists.
+ */
 router.post(
   "/forgot-password",
   [body("email").isEmail().normalizeEmail()],
@@ -126,6 +170,28 @@ router.post(
   forgotPassword,
 );
 
+/**
+ * @swagger
+ * /user/reset-password:
+ *   post:
+ *     summary: Reset password using token
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [token, newPassword]
+ *             properties:
+ *               token: { type: string }
+ *               newPassword: { type: string, format: password }
+ *     responses:
+ *       200:
+ *         description: Password updated successfully.
+ *       400:
+ *         description: Invalid or expired token.
+ */
 router.post(
   "/reset-password",
   [
@@ -140,63 +206,51 @@ router.post(
   validateRequest,
   resetPassword,
 );
+
 /**
  * @swagger
- * /auth/update:
- *   put:
- *     summary: Update current user profile
- *     tags: [Auth]
+ * /user/profile:
+ *   get:
+ *     summary: Get current authenticated user profile
+ *     tags: [Users]
  *     security:
- *       - Bearer: []
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Profile retrieved successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/User'
+ *   put:
+ *     summary: Update profile information
+ *     tags: [Users]
+ *     security:
+ *       - BearerAuth: []
  *     requestBody:
+ *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
  *             properties:
- *               name:
- *                 type: string
- *               email:
- *                 type: string
- *                 format: email
- *               password:
- *                 type: string
- *                 format: password
+ *               name: { type: string }
+ *               status: { type: string }
  *     responses:
  *       200:
- *         description: User updated successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/UserResponse'
- *       401:
- *         description: Not authenticated
- *       404:
- *         description: User not found
- */
-router.put("/update", isAuth, updateProfile);
-
-/**
- * @swagger
- * /auth/delete:
+ *         description: Profile updated successfully.
  *   delete:
- *     summary: Delete current user and their posts
- *     tags: [Auth]
+ *     summary: Delete user profile
+ *     tags: [Users]
  *     security:
- *       - Bearer: []
+ *       - BearerAuth: []
  *     responses:
  *       204:
- *         description: User deleted successfully
- *       401:
- *         description: Not authenticated
+ *         description: Profile deleted.
  */
-router.delete("/delete", isAuth, deleteProfile);
-
-//==============================
-
-router.get("/me", isAuth, userController.getProfile);
-router.patch(
-  "/me",
+router.get("/profile", isAuth, getProfile);
+router.put(
+  "/profile",
   isAuth,
   [
     body("name").optional().trim().notEmpty(),
@@ -205,9 +259,39 @@ router.patch(
   validateRequest,
   updateProfile,
 );
-router.delete("/me", isAuth, deleteProfile);
+router.delete("/profile", isAuth, deleteProfile);
 
-// Executive Administrative Endpoint Trigger Overrides
+/**
+ * @swagger
+ * /user/admin/role/:userId:
+ *   patch:
+ *     summary: Admin route to update user role
+ *     tags: [Users]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [role]
+ *             properties:
+ *               role:
+ *                 type: string
+ *                 enum: [user, editor, admin]
+ *     responses:
+ *       200:
+ *         description: Role updated successfully.
+ *       403:
+ *         description: Unauthorized.
+ */
 router.patch(
   "/admin/role/:userId",
   isAuth,

@@ -22,7 +22,7 @@ app.use("/public", express.static(path.resolve("public")));
 app.use(morganMiddleware);
 
 // Route Handling Registrations
-app.use("/users", userRoutes);
+app.use("/user", userRoutes);
 app.use("/post", feedRoutes);
 
 // Unresolved Wildcard Target Handler Route Middleware
