@@ -90,7 +90,7 @@ const options = {
                 },
             },
             securitySchemes: {
-                Bearer: {
+                bearerAuth: {
                     type: "http",
                     scheme: "bearer",
                     bearerFormat: "JWT",

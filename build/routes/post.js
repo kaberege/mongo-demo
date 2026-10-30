@@ -1,4 +1,4 @@
-import express, {} from "express";
+import express from "express";
 import { getAllPosts, feedPost, getPost, updatePost, deletePost, } from "../controllers/post.js";
 import { isAuth } from "../middleware/is-auth.js";
 import { checkRole } from "../middleware/check-role.js";
@@ -6,148 +6,118 @@ import { upload } from "../utils/file-upload.js";
 import { validateRequest } from "../middleware/validate-request.js";
 import { body, query } from "express-validator";
 const router = express.Router();
-router.get("/posts", [
-    query("page").optional().isInt({ min: 1 }).toInt(),
-    query("limit").optional().isInt({ min: 1, max: 100 }).toInt(),
-    query("search").optional().trim(),
-], validateRequest, getAllPosts);
 /**
  * @swagger
- * /feed/posts:
+ * /post/feed:
+ *   get:
+ *     summary: Fetch paginated posts feed with optional full-text search
+ *     tags: [Posts]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, default: 1 }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 10 }
+ *       - in: query
+ *         name: search
+ *         schema: { type: string }
+ *         description: Text search query matching post title or content
+ *     responses:
+ *       200:
+ *         description: List of posts retrieved successfully.
  *   post:
- *     summary: Create a new post
+ *     summary: Create a new post with image upload
  *     tags: [Posts]
  *     security:
- *       - Bearer: []
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
  *         multipart/form-data:
  *           schema:
  *             type: object
+ *             required: [title, content, image]
  *             properties:
- *               title:
- *                 type: string
- *               content:
- *                 type: string
- *               imageURL:
- *                 type: string
- *                 format: binary
+ *               title: { type: string }
+ *               content: { type: string }
+ *               image: { type: string, format: binary }
  *     responses:
  *       201:
- *         description: Post created successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Post'
+ *         description: Post created successfully.
+ *       422:
+ *         description: Image file missing or invalid payload.
  */
-router.post("/post", isAuth, checkRole(["admin", "editor", "user"]), upload.single("imageURL"), [
+router.get("/feed", [
+    query("page").optional().isInt({ min: 1 }).toInt(),
+    query("limit").optional().isInt({ min: 1, max: 100 }).toInt(),
+    query("search").optional().trim(),
+], validateRequest, getAllPosts);
+router.post("/feed", isAuth, checkRole(["admin", "editor", "user"]), upload.single("imageURL"), [
     body("title").trim().isLength({ min: 5 }),
     body("content").trim().isLength({ min: 5 }),
 ], validateRequest, feedPost);
 /**
  * @swagger
- * /feed/posts/{postId}:
+ * /post/{postId}:
  *   get:
- *     summary: Get a specific post
+ *     summary: Get single post by ID
  *     tags: [Posts]
- *     security:
- *       - Bearer: []
  *     parameters:
  *       - in: path
  *         name: postId
- *         schema:
- *           type: string
  *         required: true
- *         description: Post ID
+ *         schema: { type: string }
  *     responses:
  *       200:
- *        description: Post found
- *        content:
- *          application/json:
- *            schema:
- *              $ref: '#/components/schemas/Post'
- */
-router.get("/posts/:postId", isAuth, getPost);
-/**
- * @swagger
- * /feed/posts/{postId}:
+ *         description: Post found.
+ *       404:
+ *         description: Post not found.
  *   put:
  *     summary: Update an existing post
  *     tags: [Posts]
  *     security:
- *       - Bearer: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: postId
- *         schema:
- *           type: string
  *         required: true
- *         description: The unique ID of the post to update
+ *         schema: { type: string }
  *     requestBody:
- *       required: true
  *       content:
  *         multipart/form-data:
  *           schema:
  *             type: object
  *             properties:
- *               title:
- *                 type: string
- *                 example: "Updated Title"
- *               content:
- *                 type: string
- *                 example: "Updated content for my post"
- *               imageURL:
- *                 type: string
- *                 format: binary
- *                 description: New image file to upload (optional)
+ *               title: { type: string }
+ *               content: { type: string }
+ *               image: { type: string, format: binary }
  *     responses:
  *       200:
- *         description: Post updated successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Post'
+ *         description: Post updated successfully.
  *       403:
- *         description: Not authorized to edit this post
- *       404:
- *         description: Post not found
- */
-router.put("/post/:postId", isAuth, upload.single("imageURL"), [
-    body("title").optional().trim().isLength({ min: 5 }),
-    body("content").optional().trim().isLength({ min: 5 }),
-], validateRequest, updatePost);
-/**
- * @swagger
- * /feed/posts/{postId}:
+ *         description: Not authorized to modify post.
  *   delete:
  *     summary: Delete a post
  *     tags: [Posts]
  *     security:
- *       - Bearer: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: postId
- *         schema:
- *           type: string
- *         description: ID of the post to delete
  *         required: true
+ *         schema: { type: string }
  *     responses:
- *       200:
- *         description: Post deleted successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: "Deleted post."
+ *       204:
+ *         description: Post deleted successfully.
  *       403:
- *         description: Not authorized to delete this post
- *       404:
- *         description: Post not found
+ *         description: Not authorized to delete post.
  */
-router.delete("/posts/:postId", isAuth, deletePost);
+router.get("/:postId", getPost);
+router.put("/:postId", isAuth, upload.single("imageURL"), [
+    body("title").optional().trim().isLength({ min: 5 }),
+    body("content").optional().trim().isLength({ min: 5 }),
+], validateRequest, updatePost);
+router.delete("/:postId", isAuth, deletePost);
 export default router;
 //# sourceMappingURL=post.js.map

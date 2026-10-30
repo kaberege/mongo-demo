@@ -109,7 +109,7 @@ router.post("/refresh", tokenRefreshRotation);
  *     summary: Logout user and invalidate access token
  *     tags: [Users]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     responses:
  *       204:
  *         description: Logout successful.
@@ -173,7 +173,7 @@ router.post("/reset-password", [
  *     summary: Get current authenticated user profile
  *     tags: [Users]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Profile retrieved successfully.
@@ -185,7 +185,7 @@ router.post("/reset-password", [
  *     summary: Update profile information
  *     tags: [Users]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -202,7 +202,7 @@ router.post("/reset-password", [
  *     summary: Delete user profile
  *     tags: [Users]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     responses:
  *       204:
  *         description: Profile deleted.
@@ -220,7 +220,7 @@ router.delete("/profile", isAuth, deleteProfile);
  *     summary: Admin route to update user role
  *     tags: [Users]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: userId
