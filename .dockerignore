@@ -41,3 +41,7 @@ docker-compose*
 .github
 .gitlab-ci.yml
 .circleci
+
+# Logs
+logs/
+*.log

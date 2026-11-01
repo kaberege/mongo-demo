@@ -1,5 +1,13 @@
 import { createLogger, format, transports } from "winston";
 import path from "path";
+import fs from "fs";
+import { NODE_ENV, LOG_LEVEL } from "./config.js";
+
+// Ensure the logs directory exists before creating the logger
+const logDir = "logs";
+if (!fs.existsSync(logDir)) {
+  fs.mkdirSync(logDir, { recursive: true });
+}
 
 const logFormat = format.combine(
   format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
@@ -9,7 +17,7 @@ const logFormat = format.combine(
 );
 
 export const logger = createLogger({
-  level: process.env.LOG_LEVEL || "info",
+  level: LOG_LEVEL || "info",
   format: logFormat,
   defaultMeta: { service: "api-service" },
   transports: [
@@ -23,7 +31,7 @@ export const logger = createLogger({
   ],
 });
 
-if (process.env.NODE_ENV !== "production") {
+if (NODE_ENV !== "production") {
   logger.add(
     new transports.Console({
       format: format.combine(
