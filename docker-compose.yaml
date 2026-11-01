@@ -11,6 +11,7 @@ services:
         condition: service_healthy
     volumes:
       - ./public/uploads:/app/public/uploads
+      - ./logs:/app/logs
   mongocont:
     image: mongo:4
     container_name: mongocont
